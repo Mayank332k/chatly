@@ -1,0 +1,56 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap');
+
+:root {
+  /* User-Defined RGB Palette */
+  --bg-main: rgb(29, 29, 27);      /* Deepest Charcoal */
+  --bg-sidebar: rgb(34, 34, 32);   /* Sidebar Tone */
+  --bg-mini: rgb(24, 24, 22);      /* Nav Rail Tone */
+  --bg-chat: rgb(29, 29, 27);      /* Chat Background */
+  --bg-input: rgb(45, 45, 42);     /* Input/Highlight Tone */
+  --bg-active: rgb(50, 50, 48);    /* Selected Item Tone */
+  
+  --accent-primary: rgb(206, 98, 70);   /* Rust Orange Accent */
+  --accent-secondary: rgba(206, 98, 70, 0.8);
+  
+  --text-primary: #FFFFFF;
+  --text-secondary: #A0A09B;
+  --border-subtle: rgba(255, 255, 255, 0.04);
+  
+  --glass-bg: rgba(0, 0, 0, 0.2);
+  --glass-border: rgba(255, 255, 255, 0.04);
+  --glass-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+
+  /* Typography */
+  --font-main: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-heading: 'Outfit', sans-serif;
+
+  /* Spacing */
+  --radius-md: 5px; /* Sharper 5px radius as requested */
+  --radius-xl: 24px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root, .app-main {
+  width: 100%;
+  height: 100%;
+  overflow: hidden; /* Prevent global body scroll */
+}
+
+body {
+  font-family: var(--font-main);
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  line-height: 1.5;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  font-weight: 600;
+}
