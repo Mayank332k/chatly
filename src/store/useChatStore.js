@@ -11,6 +11,13 @@ const useChatStore = create((set, get) => ({
   chatCache: {}, // RAM Storage: { userId: messages[] } 🛡️
 
   pendingQueue: JSON.parse(localStorage.getItem('pending-messages') || '[]'),
+  uploadProgress: {}, // 📊 { [msgId]: percentage }
+
+  setUploadProgress: (msgId, progress) => {
+    set((state) => ({
+      uploadProgress: { ...state.uploadProgress, [msgId]: progress }
+    }));
+  },
 
   setSelectedUser: (user) => {
     const { selectedUser: currentSelected, chatCache, getMessages } = get();
@@ -105,13 +112,20 @@ const useChatStore = create((set, get) => ({
 
     // 3. Network Call
     try {
-      const response = await messageService.sendMessage(selectedUser._id, messageData);
+      const response = await messageService.sendMessage(selectedUser._id, messageData, (percent) => {
+        get().setUploadProgress(tempId, percent);
+      });
       
       // Replace optimistic with real server data 🔄
       const updatedMessages = get().messages.map(m => m._id === tempId ? { ...response, status: 'sent' } : m);
+      
+      // Clear progress once done
+      const { [tempId]: _, ...remainingProgress } = get().uploadProgress;
+      
       set({
         messages: updatedMessages,
         chatCache: { ...get().chatCache, [selectedUser._id]: updatedMessages }, // 🛡️ SYNC CACHE
+        uploadProgress: remainingProgress,
         // Update Sidebar Preview Reactively 🛡️
         users: get().users.map(u => u._id === selectedUser._id 
           ? { ...u, lastMessage: response.text, lastMessageTime: response.createdAt } 

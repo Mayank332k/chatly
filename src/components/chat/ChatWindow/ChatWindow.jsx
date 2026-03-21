@@ -13,6 +13,7 @@ const ChatWindow = () => {
   const subscribeToMessages = useChatStore(state => state.subscribeToMessages);
   const unsubscribeFromMessages = useChatStore(state => state.unsubscribeFromMessages);
   const sendMessage = useChatStore(state => state.sendMessage);
+  const uploadProgress = useChatStore(state => state.uploadProgress);
 
   const authUser = useAuthStore(state => state.authUser);
   const onlineUsers = useAuthStore(state => state.onlineUsers);
@@ -27,14 +28,23 @@ const ChatWindow = () => {
   const fileInputRef = useRef(null);
 
   const [selectedImageModal, setSelectedImageModal] = useState(null);
+  const [optimisticMessages, setOptimisticMessages] = useState([]);
 
   useEffect(() => {
     if (selectedUser?._id) {
        getMessages(selectedUser._id);
+       setOptimisticMessages([]); // Reset on user change
        subscribeToMessages();
     }
     return () => unsubscribeFromMessages();
   }, [selectedUser?._id, getMessages, subscribeToMessages, unsubscribeFromMessages]);
+
+  useEffect(() => {
+    // Clear optimistic message once the real one arrives via socket/sync
+    if (messages.length > 0) {
+      setOptimisticMessages([]);
+    }
+  }, [messages]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -43,7 +53,7 @@ const ChatWindow = () => {
         behavior: 'smooth'
       });
     }
-  }, [messages, imagePreview]);
+  }, [messages, imagePreview, optimisticMessages]);
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -66,13 +76,29 @@ const ChatWindow = () => {
     try {
       setSending(true);
       
+      const currentText = newMessage;
+      const currentPreview = imagePreview;
+
+      // 🎢 Optimistic UI: Show image in chat instantly
+      if (imageFile) {
+        setOptimisticMessages([{
+          _id: 'optimistic-' + Date.now(),
+          text: currentText,
+          image: currentPreview,
+          senderId: authUser._id,
+          receiverId: selectedUser._id,
+          createdAt: new Date().toISOString(),
+          isOptimistic: true
+        }]);
+      }
+
       let payload;
       if (imageFile) {
         payload = new FormData();
-        payload.append('text', newMessage);
+        payload.append('text', currentText);
         payload.append('image', imageFile);
       } else {
-        payload = { text: newMessage };
+        payload = { text: currentText };
       }
 
       setNewMessage('');
@@ -80,6 +106,8 @@ const ChatWindow = () => {
       await sendMessage(payload);
     } catch (err) {
       console.error('API Sync Error:', err);
+      // Fallback: Clear optimistic if failed
+      setOptimisticMessages([]);
     } finally {
       setSending(false);
     }
@@ -174,7 +202,7 @@ const ChatWindow = () => {
                 <p className={styles.noHistoryDesc}>Tap the explore icon below to find friends.</p>
              </motion.div>
           ) : (
-            messages.map((msg, index) => {
+            [...messages, ...optimisticMessages].map((msg, index) => {
                const isSentByMe = msg.receiverId === selectedUser._id || msg.senderId === 'me' || msg.senderId === authUser?._id;
                return (
                  <motion.div 
@@ -186,13 +214,27 @@ const ChatWindow = () => {
                  >
                     <div className={`${styles.bubble} ${isSentByMe ? styles.bubbleSent : styles.bubbleReceived} ${msg.image ? styles.bubbleWithImage : ""}`}>
                       {msg.image && (
-                        <img 
-                          src={msg.image} 
-                          alt="Media" 
-                          className={styles.chatImage} 
-                          onClick={() => setSelectedImageModal(msg.image)}
-                          style={{ cursor: 'pointer' }}
-                        />
+                        <div style={{ position: 'relative' }}>
+                          <img 
+                            src={msg.image} 
+                            alt="Media" 
+                            className={styles.chatImage} 
+                            onClick={() => !msg.isOptimistic && setSelectedImageModal(msg.image)}
+                            style={{ cursor: msg.isOptimistic ? 'default' : 'pointer' }}
+                          />
+                          {msg.isOptimistic && (
+                            <div className={styles.uploadOverlay}>
+                               <div className={styles.uploadRing} />
+                               <div className={styles.progressWrapper}>
+                                  <div 
+                                    className={styles.progressBarFill} 
+                                    style={{ width: `${uploadProgress[msg._id] || 0}%` }} 
+                                  />
+                               </div>
+                               <span className={styles.progressText}>{uploadProgress[msg._id] || 0}%</span>
+                            </div>
+                          )}
+                        </div>
                       )}
                       {msg.text && <p style={{ padding: msg.image ? "0 12px 14px 12px" : "0" }}>{msg.text}</p>}
                     </div>

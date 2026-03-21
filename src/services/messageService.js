@@ -23,10 +23,17 @@ const messageService = {
   },
 
   // 3. SEND MESSAGE: Let Axios handle Content-Type (FormData vs JSON)
-  sendMessage: async (userId, data) => {
+  sendMessage: async (userId, data, onProgress) => {
     try {
       // Direct pass without manual headers for proper Boundary detection
-      const response = await api.post(`/messages/send/${userId}`, data);
+      const response = await api.post(`/messages/send/${userId}`, data, {
+        onUploadProgress: (progressEvent) => {
+          if (onProgress && progressEvent.total) {
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            onProgress(percentCompleted);
+          }
+        }
+      });
       return response.data;
     } catch (error) {
       throw error.response?.data?.message || 'Error sending message';
