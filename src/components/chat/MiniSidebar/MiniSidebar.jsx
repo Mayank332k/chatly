@@ -92,11 +92,16 @@ const MiniSidebar = ({ onExploreClick, className }) => {
                    <div className={styles.cardBody}>
                       <div className={styles.cardItem}>
                          <Mail size={14} className={styles.cardIcon} />
-                         <span>{currentUser.email}</span>
+                         {/* 🛡️ Backend has no email — show username instead */}
+                         <span>@{currentUser.username || 'unknown'}</span>
                       </div>
                       <div className={styles.cardItem}>
                          <Calendar size={14} className={styles.cardIcon} />
-                         <span>Joined {currentUser.createdAt ? new Date(currentUser.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Recently'}</span>
+                         <span>
+                           Joined {currentUser.createdAt 
+                             ? new Date(currentUser.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) 
+                             : 'Recently'}
+                         </span>
                       </div>
                    </div>
 

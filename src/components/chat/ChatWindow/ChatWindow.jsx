@@ -17,7 +17,16 @@ const ChatWindow = () => {
 
   const authUser = useAuthStore(state => state.authUser);
   const onlineUsers = useAuthStore(state => state.onlineUsers);
-  const isOnline = onlineUsers.includes(selectedUser?._id);
+  
+  // 🛡️ Type-safe comparison: Convert both sides to String for guaranteed match
+  const isOnline = onlineUsers.some(id => String(id) === String(selectedUser?._id));
+  
+  // 🕵️ Debug: Log to verify matching (remove after confirming)
+  console.log('Online Check:', { 
+    selectedId: String(selectedUser?._id), 
+    onlineIds: onlineUsers.map(String), 
+    result: isOnline 
+  });
 
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
@@ -29,11 +38,13 @@ const ChatWindow = () => {
 
   const [selectedImageModal, setSelectedImageModal] = useState(null);
   const [optimisticMessages, setOptimisticMessages] = useState([]);
+  const [loadedImages, setLoadedImages] = useState({}); // 🛡️ Track which images have fully downloaded
 
   useEffect(() => {
     if (selectedUser?._id) {
        getMessages(selectedUser._id);
        setOptimisticMessages([]); // Reset on user change
+       setLoadedImages({}); // Reset loaded states
        subscribeToMessages();
     }
     return () => unsubscribeFromMessages();
@@ -53,7 +64,7 @@ const ChatWindow = () => {
         behavior: 'smooth'
       });
     }
-  }, [messages, imagePreview, optimisticMessages]);
+  }, [messages, imagePreview, optimisticMessages, loadedImages]);
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -80,15 +91,19 @@ const ChatWindow = () => {
       const currentPreview = imagePreview;
 
       // 🎢 Optimistic UI: Show image in chat instantly
+      // Automatically mark our own optimistic preview as loaded so it doesn't spin
+      const tempId = 'optimistic-' + Date.now();
       if (imageFile) {
+        setLoadedImages(prev => ({ ...prev, [tempId]: true }));
         setOptimisticMessages([{
-          _id: 'optimistic-' + Date.now(),
+          _id: tempId,
           text: currentText,
           image: currentPreview,
           senderId: authUser._id,
           receiverId: selectedUser._id,
           createdAt: new Date().toISOString(),
-          isOptimistic: true
+          isOptimistic: true,
+          status: 'sending'
         }]);
       }
 
@@ -103,7 +118,13 @@ const ChatWindow = () => {
 
       setNewMessage('');
       clearImage();
-      await sendMessage(payload);
+      const res = await sendMessage(payload);
+      
+      // Fix Sender Lag: Automatically mark the real Cloudinary URL as loaded for the sender 
+      // so it doesn't vanish/show a spinner while redownloading locally what we just sent!
+      if (res && res._id && res.image) {
+        setLoadedImages(prev => ({ ...prev, [res._id]: true }));
+      }
     } catch (err) {
       console.error('API Sync Error:', err);
       // Fallback: Clear optimistic if failed
@@ -204,6 +225,8 @@ const ChatWindow = () => {
           ) : (
             [...messages, ...optimisticMessages].map((msg, index) => {
                const isSentByMe = msg.receiverId === selectedUser._id || msg.senderId === 'me' || msg.senderId === authUser?._id;
+               const isImageLoaded = loadedImages[msg._id]; // 🛡️ Check if this specific image is loaded
+
                return (
                  <motion.div 
                    key={msg._id || index}
@@ -214,23 +237,27 @@ const ChatWindow = () => {
                  >
                     <div className={`${styles.bubble} ${isSentByMe ? styles.bubbleSent : styles.bubbleReceived} ${msg.image ? styles.bubbleWithImage : ""}`}>
                       {msg.image && (
-                        <div style={{ position: 'relative' }}>
+                        <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 'inherit' }}>
+                          {/* 🛡️ Receiver Side Download Spinner */}
+                          {!isImageLoaded && msg.status !== 'sending' && (
+                            <div className={styles.receiverDownloadOverlay}>
+                              <Loader2 className="animate-spin" size={32} color="var(--accent-primary)" />
+                            </div>
+                          )}
                           <img 
                             src={msg.image} 
                             alt="Media" 
-                            className={styles.chatImage} 
-                            onClick={() => !msg.isOptimistic && setSelectedImageModal(msg.image)}
-                            style={{ cursor: msg.isOptimistic ? 'default' : 'pointer' }}
+                            className={`${styles.chatImage} ${!isImageLoaded && msg.status !== 'sending' ? styles.blurredImage : ''}`} 
+                            onClick={() => msg.status !== 'sending' && isImageLoaded && setSelectedImageModal(msg.image)}
+                            onLoad={() => setLoadedImages(prev => ({ ...prev, [msg._id]: true }))}
+                            style={{ 
+                              cursor: msg.status === 'sending' || !isImageLoaded ? 'default' : 'pointer'
+                            }}
                           />
-                          {msg.isOptimistic && (
+
+                          {msg.status === 'sending' && (
                             <div className={styles.uploadOverlay}>
-                               <div className={styles.uploadRing} />
-                               <div className={styles.progressWrapper}>
-                                  <div 
-                                    className={styles.progressBarFill} 
-                                    style={{ width: `${uploadProgress[msg._id] || 0}%` }} 
-                                  />
-                               </div>
+                               <div className={styles.stretchingSpinner} />
                                <span className={styles.progressText}>{uploadProgress[msg._id] || 0}%</span>
                             </div>
                           )}
@@ -243,7 +270,6 @@ const ChatWindow = () => {
                         <span className={styles.msgTime}>
                           {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                         </span>
-                        {isSentByMe && <CheckCheck size={14} className={styles.checkIcon} />}
                     </div>
                  </motion.div>
                );

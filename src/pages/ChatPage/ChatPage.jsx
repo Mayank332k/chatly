@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { MessageSquare, ShieldCheck, Zap, Globe } from 'lucide-react';
 import Sidebar from '../../components/chat/Sidebar/Sidebar';
@@ -8,11 +8,21 @@ import SearchModal from '../../components/chat/SearchModal/SearchModal';
 import searchStyles from './ChatPageStyles.module.css';
 import styles from './ChatPage.module.css';
 import useChatStore from '../../store/useChatStore';
+import useAuthStore from '../../store/useAuthStore';
 
 const ChatPage = () => {
   const selectedUser = useChatStore(state => state.selectedUser);
   const setSelectedUser = useChatStore(state => state.setSelectedUser);
+  const authUser = useAuthStore(state => state.authUser);
+  const connectSocket = useAuthStore(state => state.connectSocket);
   const [isExploreOpen, setIsExploreOpen] = useState(false);
+
+  // 📡 Connect socket once on mount — socket.io handles reconnection internally
+  useEffect(() => {
+    if (authUser) {
+      connectSocket();
+    }
+  }, [authUser, connectSocket]);
 
   const handleSelectUser = (user) => {
     setSelectedUser(user);

@@ -401,6 +401,26 @@
   100% { transform: translateX(100%); }
 }
 
+/* 🛡️ Receiver Download Loader Overlay */
+.receiverDownloadOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+  border-radius: inherit;
+  /* Instead of fixed height, we rely on the blurred image underneath */
+}
+
+/* 🖼️ Blurred Image for incoming un-downloaded media */
+.blurredImage {
+  filter: blur(10px);
+  transform: scale(1.05); /* hide blurred edges */
+  opacity: 0.8 !important;
+  transition: filter 0.3s ease, transform 0.3s ease;
+}
+
 /* Image Upload Loader Overlay 🎡 */
 .uploadOverlay {
   position: absolute;
@@ -408,7 +428,7 @@
   background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(8px);
   display: flex;
-  flex-direction: column; /* Stacked: Ring -> Bar -> Text */
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 12px;
@@ -416,40 +436,34 @@
   border-radius: inherit;
 }
 
-.uploadRing {
-  width: 28px;
-  height: 28px;
-  border: 2px solid rgba(255, 255, 255, 0.05);
-  border-top-color: var(--accent-primary);
-  border-radius: 50%;
-  animation: spinUpload 0.8s infinite linear;
-}
-
-.progressWrapper {
-  width: 80%;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 2px;
+/* ✨ New Stretching Spinner */
+.stretchingSpinner {
+  width: 40px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  position: relative;
   overflow: hidden;
 }
 
-.progressBarFill {
+.stretchingSpinner::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
   height: 100%;
+  width: 10px;
   background: var(--accent-primary);
-  box-shadow: 0 0 8px var(--accent-primary);
-  transition: width 0.3s ease-out;
+  border-radius: 3px;
+  animation: stretchBounce 1.5s ease-in-out infinite alternate;
 }
 
-.progressText {
-  color: white;
-  font-size: 0.75rem;
-  font-weight: 600;
-  opacity: 0.9;
+@keyframes stretchBounce {
+  0% { left: 0; width: 10px; }
+  50% { width: 30px; }
+  100% { left: calc(100% - 10px); width: 10px; }
 }
 
-@keyframes spinUpload {
-  to { transform: rotate(360deg); }
-}
 /* 📸 Small Preview Window for selected media */
 .imagePreviewContainer {
   position: absolute;

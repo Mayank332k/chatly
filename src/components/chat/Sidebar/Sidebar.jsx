@@ -90,7 +90,7 @@ const Sidebar = ({ onSelectUser }) => {
                 ) : (
                   <div className={styles.defaultPfp}><User size={20} /></div>
                 )}
-                {onlineUsers.includes(user._id) && <div className={styles.onlineStatus} />}
+                {onlineUsers.some(id => String(id) === String(user._id)) && <div className={styles.onlineStatus} />}
               </div>
 
               <div className={styles.contactMeta}>

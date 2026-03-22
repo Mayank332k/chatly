@@ -1,6 +1,32 @@
 import { create } from 'zustand';
 import messageService from '../services/messageService';
-import useAuthStore from './useAuthStore';
+import useAuthStore, { setChatStoreRef } from './useAuthStore';
+
+// 🛡️ localStorage helpers for chat cache persistence
+const CACHE_KEY = 'chat-cache';
+const CACHE_MAX_AGE = 5 * 60 * 1000; // 5 minutes staleness threshold
+
+const loadCacheFromStorage = () => {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed.data || {};
+  } catch { return {}; }
+};
+
+const saveCacheToStorage = (cache) => {
+  try {
+    // Only store last 50 messages per chat to keep localStorage lean
+    const trimmed = {};
+    for (const [userId, msgs] of Object.entries(cache)) {
+      trimmed[userId] = msgs.slice(-50);
+    }
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ data: trimmed, ts: Date.now() }));
+  } catch (e) {
+    console.warn('Cache save failed (storage full?):', e);
+  }
+};
 
 const useChatStore = create((set, get) => ({
   users: [],
@@ -8,10 +34,10 @@ const useChatStore = create((set, get) => ({
   selectedUser: null,
   isUsersLoading: false,
   isMessagesLoading: false,
-  chatCache: {}, // RAM Storage: { userId: messages[] } 🛡️
+  chatCache: loadCacheFromStorage(), // 🛡️ Hydrate from localStorage on app start
 
   pendingQueue: JSON.parse(localStorage.getItem('pending-messages') || '[]'),
-  uploadProgress: {}, // 📊 { [msgId]: percentage }
+  uploadProgress: {},
 
   setUploadProgress: (msgId, progress) => {
     set((state) => ({
@@ -21,14 +47,15 @@ const useChatStore = create((set, get) => ({
 
   setSelectedUser: (user) => {
     const { selectedUser: currentSelected, chatCache, getMessages } = get();
-    // 🛡️ Prevent redundant set/fetch if same user selected
     if (currentSelected?._id === user?._id) return;
     
-    // Check Cache FIRST for instant UI update ⚡
+    // ⚡ Load from cache INSTANTLY — zero wait
     const cachedMessages = user ? (chatCache[user._id] || []) : [];
     set({ selectedUser: user, messages: cachedMessages }); 
     
-    if (user) getMessages(user._id);
+    // 🛡️ If cache has data, show it and do a SILENT background refresh
+    // If no cache, do a normal fetch with loading spinner
+    if (user) getMessages(user._id, cachedMessages.length > 0);
   },
 
   getUsers: async () => {
@@ -36,10 +63,15 @@ const useChatStore = create((set, get) => ({
     try {
       const usersList = await messageService.getUsers();
       
-      // 🕵️ Fetch ACTUAL history snippets for each user to replace placeholders
       const usersWithLastMsg = await Promise.all(
         usersList.map(async (u) => {
           try {
+             // Check cache first for last message preview
+             const cached = get().chatCache[u._id];
+             if (cached && cached.length > 0) {
+               const lastOne = cached[cached.length - 1];
+               return { ...u, lastMessage: lastOne?.text || null, lastMessageTime: lastOne?.createdAt || null };
+             }
              const history = await messageService.getChatHistory(u._id);
              const lastOne = history[history.length - 1];
              return {
@@ -48,7 +80,7 @@ const useChatStore = create((set, get) => ({
                 lastMessageTime: lastOne?.createdAt || null
              };
           } catch (e) {
-             return u; // Fallback to basic user if history fetch fails
+             return u;
           }
         })
       );
@@ -62,26 +94,28 @@ const useChatStore = create((set, get) => ({
     }
   },
 
-  getMessages: async (userId) => {
-    // 🛡️ NO LOADING if we already have data in RAM
-    const hasCache = get().chatCache[userId] && get().chatCache[userId].length > 0;
-    if (!hasCache) set({ isMessagesLoading: true });
+  getMessages: async (userId, silentRefresh = false) => {
+    // 🛡️ Only show loading spinner if no cached data
+    if (!silentRefresh) set({ isMessagesLoading: true });
 
     try {
       const serverMessages = await messageService.getChatHistory(userId);
       const localPending = get().pendingQueue.filter(m => m.receiverId === userId);
       const finalData = [...serverMessages, ...localPending];
 
-      set({ 
-        messages: finalData,
-        chatCache: { ...get().chatCache, [userId]: finalData } 
-      });
+      const newCache = { ...get().chatCache, [userId]: finalData };
+      set({ messages: finalData, chatCache: newCache });
+      
+      // 💾 Persist to localStorage
+      saveCacheToStorage(newCache);
     } catch (error) {
-      console.error('Error fetching messages:', error);
-      throw error;
+      // If silent refresh fails, keep showing cached data — no crash
+      if (!silentRefresh) {
+        console.error('Error fetching messages:', error);
+        throw error;
+      }
     } finally {
-      // Only reset if we actually turned it ON
-      if (!hasCache) set({ isMessagesLoading: false });
+      if (!silentRefresh) set({ isMessagesLoading: false });
     }
   },
 
@@ -92,10 +126,9 @@ const useChatStore = create((set, get) => ({
     const authUser = useAuthStore.getState().authUser;
     const tempId = `temp-${Date.now()}`;
 
-    // 1. Create Optimistic Message Object 🎨
     const optimisticMessage = {
       _id: tempId,
-      senderId: authUser?._id || 'me',
+      senderId: authUser?._id || authUser?.id || 'me',
       receiverId: selectedUser._id,
       text: (messageData instanceof FormData) ? messageData.get('text') : messageData.text,
       image: (messageData instanceof FormData && messageData.get('image')) ? URL.createObjectURL(messageData.get('image')) : null,
@@ -103,48 +136,41 @@ const useChatStore = create((set, get) => ({
       status: 'sending' 
     };
 
-    // 2. Instant Local Update (Messages + Cache) 🏗️
     const newMessages = [...messages, optimisticMessage];
-    set({ 
-      messages: newMessages,
-      chatCache: { ...chatCache, [selectedUser._id]: newMessages } 
-    });
+    const newCache = { ...chatCache, [selectedUser._id]: newMessages };
+    set({ messages: newMessages, chatCache: newCache });
+    saveCacheToStorage(newCache);
 
-    // 3. Network Call
     try {
       const response = await messageService.sendMessage(selectedUser._id, messageData, (percent) => {
         get().setUploadProgress(tempId, percent);
       });
       
-      // Replace optimistic with real server data 🔄
       const updatedMessages = get().messages.map(m => m._id === tempId ? { ...response, status: 'sent' } : m);
-      
-      // Clear progress once done
       const { [tempId]: _, ...remainingProgress } = get().uploadProgress;
       
+      const updatedCache = { ...get().chatCache, [selectedUser._id]: updatedMessages };
       set({
         messages: updatedMessages,
-        chatCache: { ...get().chatCache, [selectedUser._id]: updatedMessages }, // 🛡️ SYNC CACHE
+        chatCache: updatedCache,
         uploadProgress: remainingProgress,
-        // Update Sidebar Preview Reactively 🛡️
         users: get().users.map(u => u._id === selectedUser._id 
           ? { ...u, lastMessage: response.text, lastMessageTime: response.createdAt } 
           : u
-        )
+        ).sort((a, b) => {
+          const dateA = new Date(a.lastMessageTime || 0);
+          const dateB = new Date(b.lastMessageTime || 0);
+          return dateB - dateA;
+        })
       });
+      saveCacheToStorage(updatedCache);
       return response;
     } catch (error) {
       console.error('Send error (offline/slow):', error);
       
-      // 4. Handle Offline/Failure 🛡️
       const failedMessage = { ...optimisticMessage, status: 'failed' };
-      
-      // Update local view
-      set({
-        messages: get().messages.map(m => m._id === tempId ? failedMessage : m)
-      });
+      set({ messages: get().messages.map(m => m._id === tempId ? failedMessage : m) });
 
-      // Guard for actual network loss (Queue it!)
       if (!window.navigator.onLine || error.message?.includes('Network Error')) {
         const newQueue = [...pendingQueue, failedMessage];
         set({ pendingQueue: newQueue });
@@ -164,7 +190,6 @@ const useChatStore = create((set, get) => ({
 
     for (const msg of pendingQueue) {
        try {
-          // Re-bundle data (Note: Images are tricky with local persistence, assuming text for now)
           const data = { text: msg.text };
           await messageService.sendMessage(msg.receiverId, data);
           successfulIds.push(msg._id);
@@ -193,27 +218,27 @@ const useChatStore = create((set, get) => ({
         set({ messages: [...messages, newMessage] });
       }
 
-      // 🛡️ SYNC CACHE for incoming messages (even if user not selected!)
-      const targetId = newMessage.senderId === authUser?._id ? newMessage.receiverId : newMessage.senderId;
+      // 🛡️ SYNC CACHE + localStorage for incoming messages
+      const authUser = useAuthStore.getState().authUser;
+      const targetId = newMessage.senderId === (authUser?._id || authUser?.id) 
+        ? newMessage.receiverId 
+        : newMessage.senderId;
       const currentCache = chatCache[targetId] || [];
-      set({
-        chatCache: {
-          ...chatCache,
-          [targetId]: [...currentCache, newMessage]
-        }
-      });
+      const newCache = { ...chatCache, [targetId]: [...currentCache, newMessage] };
+      set({ chatCache: newCache });
+      saveCacheToStorage(newCache);
 
-      // Update users list with last message for Sidebar reactive preview 🛡️
+      // Update sidebar preview AND move to top 🚀
       set({
         users: get().users.map(u => {
           if (u._id === newMessage.senderId || u._id === newMessage.receiverId) {
-             return { 
-               ...u, 
-               lastMessage: newMessage.text, 
-               lastMessageTime: newMessage.createdAt 
-             };
+             return { ...u, lastMessage: newMessage.text, lastMessageTime: newMessage.createdAt };
           }
           return u;
+        }).sort((a, b) => {
+          const dateA = new Date(a.lastMessageTime || 0);
+          const dateB = new Date(b.lastMessageTime || 0);
+          return dateB - dateA; // Latest first
         })
       });
     });
@@ -225,5 +250,9 @@ const useChatStore = create((set, get) => ({
     socket.off('newMessage');
   },
 }));
+
+// 🛡️ Inject this store into useAuthStore's socket handler
+// Called after store creation to complete the circular-safe wiring
+setChatStoreRef(useChatStore);
 
 export default useChatStore;
