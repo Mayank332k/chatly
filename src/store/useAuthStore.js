@@ -126,7 +126,7 @@ const useAuthStore = create((set, get) => ({
 
       // Update messages list if this chat is currently open
       if (selectedUser && newMessage.senderId === selectedUser._id) {
-        useChatStore.setState({ messages: [...messages, newMessage] });
+        chatStoreRef.setState({ messages: [...messages, newMessage] });
       }
 
       // Update cache
