@@ -143,6 +143,7 @@ const useAuthStore = create((set, get) => ({
       }).sort((a, b) => new Date(b.lastMessageTime || 0) - new Date(a.lastMessageTime || 0));
 
       chatStoreRef.setState({ chatCache: newCache, users: updatedUsers });
+      chatStoreRef.getState()._persistCache(); // 💾 Persist to localStorage
     });
 
     newSocket.on('disconnect', (reason) => {

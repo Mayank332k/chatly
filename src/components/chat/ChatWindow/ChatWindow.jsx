@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { User, Send, Plus, Loader2, X, CheckCheck, Smile, Mic, ArrowLeft } from 'lucide-react';
+import { User, Send, Plus, Loader2, X, CheckCheck, Smile, Mic, ArrowLeft, ArrowUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import useAuthStore from '../../../store/useAuthStore';
 import useChatStore from '../../../store/useChatStore';
@@ -317,7 +317,7 @@ const ChatWindow = () => {
             className={styles.iconBtn}
             disabled={!newMessage.trim() && !imageFile || sending}
           >
-            <Send size={22} color={newMessage.trim() || imageFile ? "var(--accent-primary)" : "var(--text-secondary)"} />
+            <ArrowUp size={22} strokeWidth={3} />
           </button>
         </div>
       </footer>

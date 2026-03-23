@@ -10,20 +10,55 @@
   text-align: center;
 }
 
-.welcomeLottie {
-  width: 240px;
-  height: 240px;
-  margin-bottom: 30px;
-  opacity: 0.8;
-  filter: drop-shadow(0 20px 40px rgba(52, 116, 51, 0.15));
+.logoContainer {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  filter: drop-shadow(0 0 30px rgba(0, 153, 255, 0.3));
+  animation: float 6s ease-in-out infinite;
 }
 
-.welcomeTitle {
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-15px); }
+}
+
+.chatlyTitle {
   font-family: var(--font-heading);
-  font-size: 2.2rem;
-  font-weight: 700;
+  font-size: 4rem;
+  font-weight: 900;
+  letter-spacing: 12px;
+  color: white;
+  margin-bottom: 8px;
+  text-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+}
+
+.chatlySlogan {
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 4px;
   color: var(--accent-primary);
-  margin-bottom: 20px;
+  margin-bottom: 24px;
+  text-transform: uppercase;
+  opacity: 0.9;
+}
+
+.featureBadge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 8px 20px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
 }
 
 .welcomeDesc {

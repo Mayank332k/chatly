@@ -29,34 +29,42 @@ const ChatPage = () => {
     console.log('Main: Chatting with:', user.username);
   };
 
+  const ChatlyLogo = () => (
+    <div className={searchStyles.logoContainer}>
+      <div className={styles.logoBubbleBase}>
+        <MessageSquare size={100} strokeWidth={1.5} color="var(--accent-primary)" />
+      </div>
+      <div className={styles.logoBubbleOverlay}>
+        <MessageSquare size={80} strokeWidth={1.5} color="white" />
+      </div>
+    </div>
+  );
+
   const EmptyChatState = () => (
     <div className={searchStyles.emptyWrapper}>
       <motion.div 
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 1 }}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 1, type: 'spring' }}
         className={searchStyles.welcomeLottie}
       >
-        <div style={{ width: '100%', height: '100%', borderRadius: '50%', background: 'var(--bg-input)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border-subtle)', opacity: 0.15, position: 'relative' }}>
-           <MessageSquare size={120} strokeWidth={1} color="var(--accent-primary)" style={{ opacity: 0.8 }} />
-        </div>
+        <ChatlyLogo />
       </motion.div>
 
       <div style={{ zIndex: 10 }}>
-        <h1 className={searchStyles.welcomeTitle}>Welcome to SecureChat</h1>
+        <h1 className={searchStyles.chatlyTitle}>CHATLY</h1>
+        <p className={searchStyles.chatlySlogan}>TALK, SHARE & CONNECT!</p>
+        
         <p className={searchStyles.welcomeDesc}>
           Connect with friends and colleagues in a private, real-time environment. 
-          Select a conversation from the sidebar or find someone new using search to start messaging.
+          Select a conversation from the sidebar to start messaging.
         </p>
 
-        <div style={{ display: 'flex', gap: '20px', justifyContent: 'center', marginTop: '40px' }}>
-           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent-primary)', fontSize: '0.85rem' }}>
-              <ShieldCheck size={18} /> <span>End-to-End Encrypted</span>
-           </div>
-           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent-primary)', fontSize: '0.85rem' }}>
+        <div style={{ display: 'flex', gap: '30px', justifyContent: 'center', marginTop: '50px' }}>
+           <div className={searchStyles.featureBadge}>
               <Globe size={18} /> <span>Global Delivery</span>
            </div>
-           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent-primary)', fontSize: '0.85rem' }}>
+           <div className={searchStyles.featureBadge}>
               <Zap size={18} /> <span>Real-time Sync</span>
            </div>
         </div>

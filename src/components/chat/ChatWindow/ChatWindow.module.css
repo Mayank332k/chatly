@@ -50,6 +50,14 @@
   cursor: pointer;
   padding: 8px;
   margin-left: -8px;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.backBtn:active {
+  background: rgba(255, 255, 255, 0.1);
+  transform: scale(0.92);
+  color: white;
 }
 
 @media (max-width: 850px) {
@@ -85,48 +93,57 @@
 .chatFooter {
   flex-shrink: 0;
   width: 100%;
-  padding: 16px 12px calc(16px + env(safe-area-inset-bottom, 0));
-  /* 🏗️ Solid Mix for Maximum Visibility 🛡️ */
-  background: rgba(18, 18, 16, 0.94); 
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 12px 24px calc(24px + env(safe-area-inset-bottom, 0)) 24px;
+  background: transparent;
   z-index: 100;
+  display: flex;
+  justify-content: center;
 }
 
 .footerInner {
   width: 100%;
+  max-width: 900px;
+  background: rgba(0, 0, 0, 0.45); /* Smoked Glass Island 🏝️ (Fixes whitish tint) */
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 36px;
+  padding: 8px 12px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 10px; /* 🎯 Slimmer gaps for maximal input expansion */
-  max-width: 1200px;
-  margin: 0 auto;
+  gap: 12px;
+  box-shadow: 
+    0 15px 45px -10px rgba(0,0,0,0.7),
+    inset 0 1px 1px rgba(255,255,255,0.03);
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.footerInner:focus-within {
+  transform: translateY(-3px);
+  background: rgba(0, 0, 0, 0.55);
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .redesignInput {
   flex: 1;
-  height: 46px; /* Slightly taller for modern feel */
-  background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 23px;
-  padding: 0 20px; /* 🎯 Uniform symmetrical padding for centered look */
+  height: 44px;
+  background: transparent;
+  border: none;
+  padding: 0 8px;
   color: white;
   font-family: inherit;
-  font-size: 0.95rem;
+  font-size: 1rem;
+  font-weight: 400;
   outline: none;
-  transition: all 0.3s ease;
+  letter-spacing: -0.1px;
 }
 
-.redesignInput:focus {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: var(--accent-primary);
+.redesignInput::placeholder {
+  color: rgba(255, 255, 255, 0.3);
 }
 
 .inputWrapper {
   flex: 1;
-  position: relative;
   display: flex;
   align-items: center;
 }
@@ -158,21 +175,62 @@
 }
 
 .iconBtn {
-  background: none;
-  border: none;
-  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.3);
   cursor: pointer;
   width: 44px;
   height: 44px;
+  border: none;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  flex-shrink: 0;
+  outline: none;
 }
 
-.iconBtn:hover {
-  transform: scale(1.1);
-  color: var(--accent-primary);
+.iconBtn:not(:disabled) {
+  background: #007AFF; /* Solid Premium Apple Blue 🔵 */
+  color: white;
+  box-shadow: 0 4px 14px rgba(0, 122, 255, 0.35);
+}
+
+.iconBtn:hover:not(:disabled) {
+  transform: scale(1.08) translateY(-2px);
+  filter: brightness(1.1);
+  box-shadow: 0 6px 20px rgba(0, 122, 255, 0.45);
+}
+
+.iconBtn:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+.iconBtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.15;
+}
+
+/* Elite Plus Layout */
+.plusBtn {
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+
+.plusBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  transform: rotate(90deg) scale(1.05);
 }
 
 .profileThumb {
@@ -220,41 +278,46 @@
 }
 
 .bubbleSent {
-  background: var(--accent-primary);
+  background: rgba(0, 153, 255, 0.4); /* Frosted Blue ❄️ */
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   color: white;
-  border-top-right-radius: 0;
-  margin-right: 10px;
+  border-radius: 24px 24px 4px 24px; /* Directed Pill 🎩 */
+  margin-right: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.2),
+    inset 0 1px 1px rgba(255, 255, 255, 0.1);
+  position: relative;
+  transition: transform 0.2s ease;
 }
 
-.bubbleSent::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  right: -8px;
-  width: 12px;
-  height: 10px;
-  background: var(--accent-primary);
-  clip-path: polygon(0 0, 0 100%, 100% 0);
+.bubbleSent:hover {
+  transform: scale(1.02);
 }
+
+/* Removed old clunky tail ::after */
 
 .bubbleReceived {
-  background: var(--bg-input);
+  background: rgba(255, 255, 255, 0.06); /* Frosted White ❄️ */
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   color: white;
-  border-top-left-radius: 0;
-  margin-left: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.03);
+  border-radius: 24px 24px 24px 4px; /* Directed Pill 🎩 */
+  margin-left: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.15),
+    inset 0 1px 1px rgba(255, 255, 255, 0.05);
+  position: relative;
+  transition: transform 0.2s ease;
 }
 
-.bubbleReceived::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: -8px;
-  width: 12px;
-  height: 10px;
-  background: var(--bg-input);
-  clip-path: polygon(100% 0, 0 0, 100% 100%);
+.bubbleReceived:hover {
+  transform: scale(1.02);
 }
+
+/* Removed old clunky tail ::after */
 
 .bubbleWithImage {
   padding: 4px !important; /* Low padding for a sleek border look */

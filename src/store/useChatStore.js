@@ -203,52 +203,15 @@ const useChatStore = create((set, get) => ({
     localStorage.setItem('pending-messages', JSON.stringify(remainingQueue));
   },
 
-  subscribeToMessages: () => {
-    const { selectedUser } = get();
-    if (!selectedUser) return;
-
-    const socket = useAuthStore.getState().socket;
-    if (!socket) return;
-
-    socket.on('newMessage', (newMessage) => {
-      const { selectedUser, messages, chatCache } = get();
-      const isMessageSentFromSelectedUser = newMessage.senderId === selectedUser?._id;
-      
-      if (isMessageSentFromSelectedUser) {
-        set({ messages: [...messages, newMessage] });
-      }
-
-      // 🛡️ SYNC CACHE + localStorage for incoming messages
-      const authUser = useAuthStore.getState().authUser;
-      const targetId = newMessage.senderId === (authUser?._id || authUser?.id) 
-        ? newMessage.receiverId 
-        : newMessage.senderId;
-      const currentCache = chatCache[targetId] || [];
-      const newCache = { ...chatCache, [targetId]: [...currentCache, newMessage] };
-      set({ chatCache: newCache });
-      saveCacheToStorage(newCache);
-
-      // Update sidebar preview AND move to top 🚀
-      set({
-        users: get().users.map(u => {
-          if (u._id === newMessage.senderId || u._id === newMessage.receiverId) {
-             return { ...u, lastMessage: newMessage.text, lastMessageTime: newMessage.createdAt };
-          }
-          return u;
-        }).sort((a, b) => {
-          const dateA = new Date(a.lastMessageTime || 0);
-          const dateB = new Date(b.lastMessageTime || 0);
-          return dateB - dateA; // Latest first
-        })
-      });
-    });
+  // 🛡️ Persist cache to localStorage — called by useAuthStore's always-on socket handler
+  _persistCache: () => {
+    saveCacheToStorage(get().chatCache);
   },
 
-  unsubscribeFromMessages: () => {
-    const socket = useAuthStore.getState().socket;
-    if (!socket) return;
-    socket.off('newMessage');
-  },
+  // 🛡️ No-ops: newMessage handling is now centralized in useAuthStore's always-on socket handler
+  // This prevents duplicate messages from being added when both listeners were active
+  subscribeToMessages: () => {},
+  unsubscribeFromMessages: () => {},
 }));
 
 // 🛡️ Inject this store into useAuthStore's socket handler
