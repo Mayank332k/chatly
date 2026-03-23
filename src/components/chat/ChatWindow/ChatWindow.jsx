@@ -290,36 +290,50 @@ const ChatWindow = () => {
           )}
         </AnimatePresence>
 
-        <div className={styles.footerInner}>
+        <div className={styles.plusWrapper}>
           <motion.button 
             type="button"
             onClick={() => fileInputRef.current?.click()} 
             whileHover={{ scale: 1.1 }}
             className={styles.plusBtn}
           >
-            <Plus size={24} strokeWidth={3} />
+            <Plus size={24} strokeWidth={2.5} />
           </motion.button>
-          
+        </div>
+        
+        <div className={styles.footerInner}>
           <div className={styles.inputWrapper}>
-            <input 
-              type="text" 
+            <textarea 
+              rows={1}
               placeholder="Type your message..." 
               className={styles.redesignInput} 
               value={newMessage} 
-              onChange={(e) => setNewMessage(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+              onChange={(e) => {
+                setNewMessage(e.target.value);
+                // Reset height to calculate correctly
+                e.target.style.height = 'auto';
+                e.target.style.height = `${Math.min(e.target.scrollHeight, 150)}px`;
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                  // Reset height after send
+                  e.target.style.height = 'auto';
+                }
+              }}
             />
           </div>
-
-          <button 
-            type="button"
-            onClick={handleSend}
-            className={styles.iconBtn}
-            disabled={!newMessage.trim() && !imageFile || sending}
-          >
-            <ArrowUp size={22} strokeWidth={3} />
-          </button>
         </div>
+
+        <button 
+          type="button"
+          onClick={handleSend}
+          className={styles.iconBtn}
+          disabled={!newMessage.trim() && !imageFile || sending}
+        >
+          <ArrowUp size={20} strokeWidth={3} />
+        </button>
       </footer>
     </div>
   );
