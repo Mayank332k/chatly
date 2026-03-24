@@ -8,21 +8,24 @@ import {
 import useAuthStore from '../../../store/useAuthStore';
 import { useNavigate } from 'react-router-dom';
 import ProfileModal from '../ProfileModal/ProfileModal';
-import logo from '../../../assets/logo.png';
 import styles from './MiniSidebar.module.css';
 
-const MiniSidebar = ({ onExploreClick, className = '' }) => {
+const MiniSidebar = ({ onExploreClick, className }) => {
   const { authUser: currentUser, logout } = useAuthStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const navigate = useNavigate();
 
   const handleLogout = async () => {
-    await logout();
-    navigate('/');
+    try {
+      await logout();
+      navigate('/');
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleSettingsClick = () => {
-    if (window.innerWidth <= 850) {
+    if (window.innerWidth < 850) {
       navigate('/settings');
     } else {
       setIsModalOpen(true);
@@ -31,10 +34,6 @@ const MiniSidebar = ({ onExploreClick, className = '' }) => {
 
   return (
     <aside className={`${styles.miniSidebar} ${className}`}>
-      <div className={styles.logoContainer} onClick={() => navigate('/chat')}>
-        <img src={logo} alt="L" className={styles.logoIcon} />
-      </div>
-
       <div className={`${styles.navIcon} ${styles.active}`} data-tooltip="Chats">
          <MessageCircle size={24} strokeWidth={2.5} />
       </div>

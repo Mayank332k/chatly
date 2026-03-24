@@ -8,6 +8,33 @@
   }
 }
 
+.logoContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 24px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+
+.logoContainer:hover {
+  transform: scale(1.1);
+  filter: brightness(1.2);
+}
+
+.logoIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  object-fit: cover;
+}
+
+@media (max-width: 850px) {
+  .logoContainer {
+    display: none;
+  }
+}
+
 .miniSidebar {
   width: 70px;
   height: 100vh;
