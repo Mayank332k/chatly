@@ -39,6 +39,16 @@ const messageService = {
       throw error.response?.data?.message || 'Error sending message';
     }
   },
+
+  // 4. MARK AS READ: Notify the server that messages from a sender have been read
+  markMessagesAsRead: async (senderId) => {
+    try {
+      const response = await api.put(`/messages/read/${senderId}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data?.message || 'Error marking messages as read';
+    }
+  },
 };
 
 export default messageService;

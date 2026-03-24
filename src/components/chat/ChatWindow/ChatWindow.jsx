@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { User, Send, Plus, Loader2, X, CheckCheck, Smile, Mic, ArrowLeft, ArrowUp } from 'lucide-react';
+import { User, Send, Plus, Loader2, X, Check, CheckCheck, Smile, Mic, ArrowLeft, ArrowUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import useAuthStore from '../../../store/useAuthStore';
 import useChatStore from '../../../store/useChatStore';
@@ -14,6 +14,7 @@ const ChatWindow = () => {
   const unsubscribeFromMessages = useChatStore(state => state.unsubscribeFromMessages);
   const sendMessage = useChatStore(state => state.sendMessage);
   const uploadProgress = useChatStore(state => state.uploadProgress);
+  const markMessagesAsRead = useChatStore(state => state.markMessagesAsRead);
 
   const authUser = useAuthStore(state => state.authUser);
   const onlineUsers = useAuthStore(state => state.onlineUsers);
@@ -56,6 +57,17 @@ const ChatWindow = () => {
       setOptimisticMessages([]);
     }
   }, [messages]);
+
+  useEffect(() => {
+    // 🛡️ Trigger Read Receipt when messages update or user changes
+    if (selectedUser?._id && messages.length > 0) {
+      const sId = String(selectedUser._id);
+      const hasUnread = messages.some(msg => String(msg.senderId) === sId && !msg.isRead);
+      if (hasUnread) {
+        markMessagesAsRead(sId);
+      }
+    }
+  }, [messages, selectedUser?._id, markMessagesAsRead]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -224,7 +236,10 @@ const ChatWindow = () => {
              </motion.div>
           ) : (
             [...messages, ...optimisticMessages].map((msg, index) => {
-               const isSentByMe = msg.receiverId === selectedUser._id || msg.senderId === 'me' || msg.senderId === authUser?._id;
+               const myId = String(authUser?._id || authUser?.id || '');
+               const senderId = String(msg.senderId);
+               
+               const isSentByMe = senderId === myId || senderId === 'me' || msg.receiverId === String(selectedUser?._id);
                const isImageLoaded = loadedImages[msg._id]; // 🛡️ Check if this specific image is loaded
 
                return (
@@ -270,6 +285,38 @@ const ChatWindow = () => {
                         <span className={styles.msgTime}>
                           {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                         </span>
+                        {isSentByMe && (
+                          <div className={styles.readStatusIconWrapper}>
+                            <AnimatePresence mode="wait">
+                              {msg.isRead ? (
+                                <motion.div
+                                  key="read"
+                                  initial={{ scale: 0.5, opacity: 0 }}
+                                  animate={{ scale: 1, opacity: 1 }}
+                                  transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                                >
+                                  <CheckCheck 
+                                    size={16} 
+                                    style={{ color: '#FFB84D' }}
+                                  />
+                                </motion.div>
+                              ) : (
+                                <motion.div
+                                  key="sent"
+                                  initial={{ scale: 0.8, opacity: 0 }}
+                                  animate={{ scale: 1, opacity: 1 }}
+                                  exit={{ scale: 0.8, opacity: 0 }}
+                                  transition={{ duration: 0.2 }}
+                                >
+                                  <Check 
+                                    size={16} 
+                                    style={{ color: '#94A3B8' }}
+                                  />
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
+                        )}
                     </div>
                  </motion.div>
                );

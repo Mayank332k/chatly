@@ -116,34 +116,96 @@ const useAuthStore = create((set, get) => ({
       set({ onlineUsers: userIds });
     });
 
-    // 🛡️ ALWAYS-ON sidebar sort — works even when no chat is selected
-    // Previously this only ran inside subscribeToMessages (only when ChatWindow mounted)
+    // 🛡️ ALWAYS-ON sidebar sort and message handling
     newSocket.on('newMessage', (newMessage) => {
+      console.log('📨 New message received via socket:', newMessage._id);
       if (!chatStoreRef) return;
-      const { users, chatCache, selectedUser, messages } = chatStoreRef.getState();
-      const authUser = get().authUser;
-      const myId = authUser?._id || authUser?.id;
-
-      // Update messages list if this chat is currently open
-      if (selectedUser && newMessage.senderId === selectedUser._id) {
-        chatStoreRef.setState({ messages: [...messages, newMessage] });
-      }
-
-      // Update cache
-      const targetId = newMessage.senderId === myId ? newMessage.receiverId : newMessage.senderId;
-      const currentCache = chatCache[targetId] || [];
-      const newCache = { ...chatCache, [targetId]: [...currentCache, newMessage] };
       
-      // Update + SORT sidebar so receiver's chat card jumps to top 🚀
+      const { users, chatCache, selectedUser } = chatStoreRef.getState();
+      const authUser = get().authUser;
+      const myId = String(authUser?._id || authUser?.id || '');
+      const sId = String(newMessage.senderId);
+      const rId = String(newMessage.receiverId);
+
+      // Determine which chat ID to update in cache
+      const targetChatId = sId === myId ? rId : sId;
+
+      chatStoreRef.setState((state) => {
+        const { messages, chatCache } = state;
+        
+        // Update active messages if this chat is open
+        let updatedMessages = messages;
+        if (selectedUser && String(selectedUser._id) === targetChatId) {
+          // Prevent duplicates (e.g. from local optimistic insert)
+          const exists = messages.some(m => m._id === newMessage._id || (m._id.startsWith('temp-') && m.text === newMessage.text));
+          if (exists) {
+             updatedMessages = messages.map(m => (m._id === newMessage._id || m._id.startsWith('temp-')) ? newMessage : m);
+          } else {
+             updatedMessages = [...messages, newMessage];
+          }
+        }
+
+        // Update cache
+        const currentCache = chatCache[targetChatId] || [];
+        const existsInCache = currentCache.some(m => m._id === newMessage._id);
+        const updatedCache = {
+          ...chatCache,
+          [targetChatId]: existsInCache ? currentCache : [...currentCache, newMessage]
+        };
+
+        return { messages: updatedMessages, chatCache: updatedCache };
+      });
+      
+      // Update sidebar sort
       const updatedUsers = users.map(u => {
-        if (u._id === newMessage.senderId || u._id === newMessage.receiverId) {
+        if (String(u._id) === sId || String(u._id) === rId) {
           return { ...u, lastMessage: newMessage.text, lastMessageTime: newMessage.createdAt };
         }
         return u;
       }).sort((a, b) => new Date(b.lastMessageTime || 0) - new Date(a.lastMessageTime || 0));
 
-      chatStoreRef.setState({ chatCache: newCache, users: updatedUsers });
-      chatStoreRef.getState()._persistCache(); // 💾 Persist to localStorage
+      chatStoreRef.setState({ users: updatedUsers });
+      chatStoreRef.getState()._persistCache();
+    });
+
+    newSocket.on('messagesRead', ({ senderId, receiverId }) => {
+      console.log('👁️ Messages read event received:', { senderId, receiverId });
+      if (!chatStoreRef) return;
+      
+      const authUser = get().authUser;
+      const myId = String(authUser?._id || authUser?.id || '');
+      const sId = String(senderId);
+      const rId = String(receiverId);
+
+      // If User B read User A's messages: sId=A, rId=B
+      // If I am User A: targetChatId=B
+      // If I am User B: targetChatId=A
+      const targetChatId = sId === myId ? rId : sId;
+
+      chatStoreRef.setState((state) => {
+        const { selectedUser, messages, chatCache } = state;
+
+        // Update active messages if open
+        let updatedMessages = messages;
+        if (selectedUser && String(selectedUser._id) === targetChatId) {
+          updatedMessages = messages.map(msg => 
+            String(msg.senderId) === sId ? { ...msg, isRead: true } : msg
+          );
+        }
+
+        // Update cache
+        const currentCache = chatCache[targetChatId] || [];
+        const updatedCache = {
+          ...chatCache,
+          [targetChatId]: currentCache.map(msg => 
+            String(msg.senderId) === sId ? { ...msg, isRead: true } : msg
+          )
+        };
+
+        return { chatCache: updatedCache, messages: updatedMessages };
+      });
+      
+      chatStoreRef.getState()._persistCache();
     });
 
     newSocket.on('disconnect', (reason) => {

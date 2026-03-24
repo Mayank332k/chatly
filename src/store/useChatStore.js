@@ -200,7 +200,26 @@ const useChatStore = create((set, get) => ({
 
     const remainingQueue = pendingQueue.filter(m => !successfulIds.includes(m._id));
     set({ pendingQueue: remainingQueue });
-    localStorage.setItem('pending-messages', JSON.stringify(remainingQueue));
+  },
+
+  markMessagesAsRead: async (senderId) => {
+    const { messages, chatCache } = get();
+    try {
+      await messageService.markMessagesAsRead(senderId);
+      
+      // Optimistically update local messages
+      const updatedMessages = messages.map(msg => 
+        String(msg.senderId) === String(senderId) ? { ...msg, isRead: true } : msg
+      );
+      
+      const newCache = { ...chatCache, [senderId]: updatedMessages };
+      set({ messages: updatedMessages, chatCache: newCache });
+      
+      // Persist to storage
+      saveCacheToStorage(newCache);
+    } catch (error) {
+      console.error('Error in markMessagesAsRead action:', error);
+    }
   },
 
   // 🛡️ Persist cache to localStorage — called by useAuthStore's always-on socket handler

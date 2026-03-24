@@ -109,7 +109,7 @@ const AuthForm = () => {
               </div>
             )}
             <div className={styles.inputWrapper}>
-              <Mail size={18} className={styles.inputIcon} />
+              <User size={18} className={styles.inputIcon} />
               <input type="text" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} required className={styles.inputField} />
             </div>
             <div className={styles.inputWrapper}>
