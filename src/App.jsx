@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import LandingPage from './pages/LandingPage/LandingPage';
 import ChatPage from './pages/ChatPage/ChatPage';
+import SettingsPage from './pages/SettingsPage/SettingsPage';
 import './index.css';
 
 import { useEffect } from 'react';
@@ -16,9 +17,12 @@ function App() {
     checkAuth();
   }, [checkAuth]);
 
-  // Instant Persistent Entry (No Black Screen) 🏎️
-  // Store handles re-hydration from LocalStorage
 
+  if (isCheckingAuth && !authUser) return (
+    <div className="flex items-center justify-center h-screen bg-[#121210]">
+      <Loader2 className="w-8 h-8 animate-spin text-[#E67E22]" />
+    </div>
+  );
 
   return (
     <Router>
@@ -26,6 +30,7 @@ function App() {
         <Routes>
           <Route path="/" element={!authUser ? <LandingPage /> : <Navigate to="/chat" />} />
           <Route path="/chat" element={authUser ? <ChatPage /> : <Navigate to="/" />} />
+          <Route path="/settings" element={authUser ? <SettingsPage /> : <Navigate to="/" />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>

@@ -41,6 +41,25 @@ const authService = {
       throw error.response?.data?.message || 'Error occurred during logout';
     }
   },
+  // 4. UPDATE PROFILE
+  updateProfile: async (formData) => {
+    try {
+      const response = await api.put('/auth/update-profile', formData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data?.message || 'Error updating profile';
+    }
+  },
+
+  // 5. UPDATE PASSWORD
+  updatePassword: async (passwordData) => {
+    try {
+      const response = await api.put('/auth/update-password', passwordData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data?.message || 'Error updating password';
+    }
+  },
 };
 
 export default authService;

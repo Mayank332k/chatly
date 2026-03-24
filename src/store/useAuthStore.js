@@ -208,6 +208,24 @@ const useAuthStore = create((set, get) => ({
       chatStoreRef.getState()._persistCache();
     });
 
+    // ✍️ Listen for typing events
+    newSocket.on('typing', (senderId) => {
+      if (!chatStoreRef) return;
+      const { typingUsers } = chatStoreRef.getState();
+      if (!typingUsers.includes(senderId)) {
+        chatStoreRef.setState({ typingUsers: [...typingUsers, senderId] });
+      }
+    });
+
+    // 🛑 Listen for stop-typing events
+    newSocket.on('stopTyping', (senderId) => {
+      if (!chatStoreRef) return;
+      const { typingUsers } = chatStoreRef.getState();
+      chatStoreRef.setState({
+        typingUsers: typingUsers.filter(id => id !== senderId)
+      });
+    });
+
     newSocket.on('disconnect', (reason) => {
       console.warn('⚠️ Socket disconnected:', reason);
     });
@@ -215,6 +233,28 @@ const useAuthStore = create((set, get) => ({
     newSocket.on('connect_error', (error) => {
       console.error('❌ Socket Connection Error:', error.message);
     });
+  },
+
+  updateProfile: async (formData) => {
+    try {
+      const res = await authService.updateProfile(formData);
+      set({ authUser: res });
+      localStorage.setItem('chat-user', JSON.stringify(res));
+      return res;
+    } catch (error) {
+      console.error('Update profile error:', error);
+      throw error;
+    }
+  },
+
+  updatePassword: async (data) => {
+    try {
+      const res = await authService.updatePassword(data);
+      return res;
+    } catch (error) {
+      console.error('Update password error:', error);
+      throw error;
+    }
   },
 
   disconnectSocket: () => {

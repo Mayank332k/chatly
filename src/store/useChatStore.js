@@ -35,6 +35,7 @@ const useChatStore = create((set, get) => ({
   isUsersLoading: false,
   isMessagesLoading: false,
   chatCache: loadCacheFromStorage(), // 🛡️ Hydrate from localStorage on app start
+  typingUsers: [], // ✍️ Track who is typing to us in real-time
 
   pendingQueue: JSON.parse(localStorage.getItem('pending-messages') || '[]'),
   uploadProgress: {},
@@ -43,6 +44,10 @@ const useChatStore = create((set, get) => ({
     set((state) => ({
       uploadProgress: { ...state.uploadProgress, [msgId]: progress }
     }));
+  },
+
+  setTypingUsers: (users) => {
+    set({ typingUsers: users });
   },
 
   setSelectedUser: (user) => {
@@ -215,26 +220,20 @@ const useChatStore = create((set, get) => ({
       const newCache = { ...chatCache, [senderId]: updatedMessages };
       set({ messages: updatedMessages, chatCache: newCache });
       
-      // Persist to storage
       saveCacheToStorage(newCache);
     } catch (error) {
       console.error('Error in markMessagesAsRead action:', error);
     }
   },
 
-  // 🛡️ Persist cache to localStorage — called by useAuthStore's always-on socket handler
   _persistCache: () => {
     saveCacheToStorage(get().chatCache);
   },
 
-  // 🛡️ No-ops: newMessage handling is now centralized in useAuthStore's always-on socket handler
-  // This prevents duplicate messages from being added when both listeners were active
   subscribeToMessages: () => {},
   unsubscribeFromMessages: () => {},
 }));
 
-// 🛡️ Inject this store into useAuthStore's socket handler
-// Called after store creation to complete the circular-safe wiring
 setChatStoreRef(useChatStore);
 
 export default useChatStore;

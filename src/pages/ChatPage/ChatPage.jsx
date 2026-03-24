@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { MessageSquare, ShieldCheck, Zap, Globe } from 'lucide-react';
 import Sidebar from '../../components/chat/Sidebar/Sidebar';
 import ChatWindow from '../../components/chat/ChatWindow/ChatWindow';
 import MiniSidebar from '../../components/chat/MiniSidebar/MiniSidebar';
@@ -9,6 +8,7 @@ import searchStyles from './ChatPageStyles.module.css';
 import styles from './ChatPage.module.css';
 import useChatStore from '../../store/useChatStore';
 import useAuthStore from '../../store/useAuthStore';
+import logo from '../../assets/logo.png';
 
 const ChatPage = () => {
   const selectedUser = useChatStore(state => state.selectedUser);
@@ -31,12 +31,7 @@ const ChatPage = () => {
 
   const ChatlyLogo = () => (
     <div className={searchStyles.logoContainer}>
-      <div className={styles.logoBubbleBase}>
-        <MessageSquare size={100} strokeWidth={1.5} color="var(--accent-primary)" />
-      </div>
-      <div className={styles.logoBubbleOverlay}>
-        <MessageSquare size={80} strokeWidth={1.5} color="white" />
-      </div>
+      <img src={logo} alt="Chatly" className={styles.mainLogoImg} />
     </div>
   );
 
@@ -52,10 +47,9 @@ const ChatPage = () => {
       </motion.div>
 
       <div style={{ zIndex: 10 }}>
-        <h1 className={searchStyles.chatlyTitle}>CHATLY</h1>
-        <p className={searchStyles.chatlySlogan}>TALK, SHARE & CONNECT!</p>
+        {/* Headings removed as they are part of the new logo image 🛡️ */}
         
-        <p className={searchStyles.welcomeDesc}>
+        <p className={searchStyles.welcomeDesc} style={{ marginTop: '20px' }}>
           Connect with friends and colleagues in a private, real-time environment. 
           Select a conversation from the sidebar to start messaging.
         </p>

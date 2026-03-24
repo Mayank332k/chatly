@@ -1,3 +1,13 @@
+.navSpacer {
+  flex: 1;
+}
+
+@media (max-width: 850px) {
+  .navSpacer {
+    display: none;
+  }
+}
+
 .miniSidebar {
   width: 70px;
   height: 100vh;
@@ -5,7 +15,8 @@
   border-right: 1px solid var(--border-subtle);
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
   padding: 16px 0;
   flex-shrink: 0;
   z-index: 2000; /* Stays above everything */
@@ -19,10 +30,10 @@
     bottom: 24px;
     left: 50%;
     transform: translateX(-50%);
-    width: 280px; /* Fixed width for better spacing control */
+    width: 220px; /* Compact width for 3 items */
     height: 64px;
     flex-direction: row;
-    gap: 0; /* Using justify-content for precise spacing */
+    gap: 0;
     justify-content: space-around;
     padding: 0 16px;
     border-radius: 999px;

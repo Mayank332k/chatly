@@ -35,6 +35,7 @@ const ChatWindow = () => {
   const [imagePreview, setImagePreview] = useState(null);
 
   const scrollRef = useRef(null);
+  const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
 
   const [selectedImageModal, setSelectedImageModal] = useState(null);
@@ -69,14 +70,40 @@ const ChatWindow = () => {
     }
   }, [messages, selectedUser?._id, markMessagesAsRead]);
 
+  // ✍️ Typing Indicator Logic
+  const typingTimeoutRef = useRef(null);
+  const socket = useAuthStore(state => state.socket);
+  const typingUsers = useChatStore(state => state.typingUsers);
+  const isTyping = typingUsers.includes(String(selectedUser?._id));
+
+  const handleTyping = () => {
+    if (!socket || !selectedUser) return;
+
+    // Emit typing event to server
+    socket.emit("typing", selectedUser._id);
+
+    // Clear existing stop-typing timeout
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+
+    // Set new timeout to stop typing after 1 second of inactivity
+    typingTimeoutRef.current = setTimeout(() => {
+      socket.emit("stopTyping", selectedUser._id);
+    }, 1000);
+  };
+
+  // 🛑 Cleanup typing status on unmount or user change
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTo({
-        top: scrollRef.current.scrollHeight,
-        behavior: 'smooth'
-      });
-    }
-  }, [messages, imagePreview, optimisticMessages, loadedImages]);
+    return () => {
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      if (socket && selectedUser) {
+        socket.emit("stopTyping", selectedUser._id);
+      }
+    };
+  }, [selectedUser?._id, socket]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, imagePreview, optimisticMessages, loadedImages, isTyping]);
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -136,6 +163,12 @@ const ChatWindow = () => {
       // so it doesn't vanish/show a spinner while redownloading locally what we just sent!
       if (res && res._id && res.image) {
         setLoadedImages(prev => ({ ...prev, [res._id]: true }));
+      }
+
+      // 🛑 Stop typing immediately on send
+      if (socket && selectedUser) {
+        socket.emit("stopTyping", selectedUser._id);
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       }
     } catch (err) {
       console.error('API Sync Error:', err);
@@ -213,7 +246,7 @@ const ChatWindow = () => {
           </div>
         )}
 
-        <AnimatePresence initial={false}>
+        <AnimatePresence>
           {loading ? (
              <div className={styles.skeletonContainer}>
                {[1, 2, 3].map((i) => (
@@ -322,7 +355,29 @@ const ChatWindow = () => {
                );
             })
           )}
+          
+          {/* ✍️ Typing Indicator Bubble */}
+          {isTyping && (
+             <motion.div 
+               key="typing-indicator"
+               initial={{ opacity: 0, scale: 0.8, y: 10 }}
+               animate={{ opacity: 1, scale: 1, y: 0 }}
+               exit={{ opacity: 0, scale: 0.8, y: 10 }}
+               transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+               className={`${styles.msgItem} ${styles.msgReceived}`}
+               style={{ marginBottom: '8px' }}
+             >
+                <div className={`${styles.bubble} ${styles.bubbleReceived}`}>
+                   <div className={styles.typingIndicator}>
+                      <span className={styles.dot}></span>
+                      <span className={styles.dot}></span>
+                      <span className={styles.dot}></span>
+                   </div>
+                </div>
+             </motion.div>
+          )}
         </AnimatePresence>
+        <div ref={messagesEndRef} />
       </div>
 
       <footer className={styles.chatFooter}>
@@ -357,6 +412,7 @@ const ChatWindow = () => {
               value={newMessage} 
               onChange={(e) => {
                 setNewMessage(e.target.value);
+                handleTyping(); // ✍️ Trigger typing event
                 // Reset height to calculate correctly
                 e.target.style.height = 'auto';
                 e.target.style.height = `${Math.min(e.target.scrollHeight, 150)}px`;
