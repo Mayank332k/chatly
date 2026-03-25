@@ -1,73 +1,87 @@
-# React + TypeScript + Vite
+# 💬 Pulse Chat — Premium Real-time Experience
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+**Pulse Chat** is a high-performance, real-time messaging application designed with a "Quiet Luxury" aesthetic. Built on modern web technologies, it offers a seamless, low-latency communication experience with advanced features like read receipts, typing indicators, and background AI integration.
 
-Currently, two official plugins are available:
+🚀 **Live Demo:** [https://chat-app-frontend-dqrk.vercel.app/](https://chat-app-frontend-dqrk.vercel.app/)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## ✨ Key Features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **⚡ Real-time Messaging:** Powered by Socket.io for sub-millisecond delivery latency.
+- **🛡️ Intelligent Caching:** Custom Zustand-powered persistence layer that loads chats instantly (Offline-first approach).
+- **✅ Message Status:** Real-time feedback with "Sent" and "Read" receipts (double-tick system).
+- **✍️ Live Presence:** Real-time typing indicators to keep the conversation alive.
+- **✨ Quiet Luxury UI:** A premium, minimalist design featuring glassmorphism, smooth Framer Motion transitions, and a mobile-first pill navigation system.
+- **🤖 AI Integration:** Native integration with Sarvam AI and OpenRouter for intelligent chat capabilities.
+- **📁 Media Support:** Integrated image uploads with real-time progress tracking.
+- **🔄 Background Sync:** Automatic retry and synchronization for messages sent while offline.
 
-## Expanding the ESLint configuration
+---
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## 🛠️ Technology Stack
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### **Frontend Core**
+- **Framework:** [React 19](https://react.dev/) (Vite-powered)
+- **Language:** JavaScript (ES6+) / TypeScript
+- **State Management:** [Zustand](https://github.com/pmndrs/zustand) (with custom localStorage hydration)
+- **Routing:** [React Router Dom v7](https://reactrouter.com/)
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### **Real-time & API**
+- **Communication:** [Socket.io-client](https://socket.io/)
+- **HTTP Client:** [Axios](https://axios-http.com/) (with centralized interceptors)
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### **Design & Experience**
+- **Styling:** Vanilla CSS (CSS Modules)
+- **Animations:** [Framer Motion](https://www.framer.com/motion/)
+- **Icons:** [Lucide React](https://lucide.dev/)
+
+---
+
+## 📂 Project Structure
+
+```bash
+src/
+├── components/     # Reusable UI components (Sidebar, ChatWindow, etc.)
+├── pages/          # Full-page views (Landing, Chat, Settings)
+├── services/       # API and Socket communication logic
+├── store/          # Zustand global state (Auth, Chat)
+├── utils/          # Helper functions and constants
+└── App.jsx         # Main application entry and routing
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+---
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## 🚀 Getting Started
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### 1. Clone & Install
+```bash
+git clone https://github.com/Mayank332k/chat-app-frontend.git
+cd chat-app-frontend
+npm install
 ```
+
+### 2. Configure Environment
+Create a `.env` file in the root directory:
+```env
+VITE_BASE_URL=your_backend_api_url
+VITE_SOCKET_URL=your_socket_server_url
+```
+
+### 3. Run Locally
+```bash
+npm run dev
+```
+
+---
+
+## 💎 Best Practices Implemented
+
+- **Optimistic Updates:** Messages are reflected in the UI immediately while syncing with the server in the background.
+- **Memory Management:** Efficient cache trimming to prevent `localStorage` overflow.
+- **Silent Refresh:** Background fetching ensures users see content instantly while the latest data is synced silently.
+- **Responsive Layout:** Adaptive design that feels native on both desktop and mobile devices.
+
+---
+
+Made with ❤️ by [Mayank](https://github.com/Mayank332k)
