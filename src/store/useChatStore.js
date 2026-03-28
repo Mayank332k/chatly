@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import messageService from '../services/messageService';
+import chatbotService from '../services/chatbotService'; // 🤖 AI Service
 import useAuthStore, { setChatStoreRef } from './useAuthStore';
 
 // 🛡️ localStorage helpers for chat cache persistence
@@ -147,9 +148,25 @@ const useChatStore = create((set, get) => ({
     saveCacheToStorage(newCache);
 
     try {
-      const response = await messageService.sendMessage(selectedUser._id, messageData, (percent) => {
-        get().setUploadProgress(tempId, percent);
-      });
+      let response;
+      const isAiAssistant = selectedUser.username === 'ai_assistant';
+
+      if (isAiAssistant) {
+        // 🤖 Call the AI talk endpoint instead
+        const aiPayload = (messageData instanceof FormData) ? { text: messageData.get('text') } : messageData;
+        const talkResponse = await chatbotService.talk(aiPayload);
+        // Backend returns { reply: "string", aiAgent: { ... } }
+        // The real message is stored in the database, but we want to show it instantly
+        response = talkResponse.aiAgent; // This is a bit tricky: response should be the SAVED message
+        // Actually, getAiTalk emits a newMessage socket event for both User and AI. 
+        // So the user message and AI reply should arrive via socket.
+        // But for consistency with existing optimistic UI:
+        return talkResponse; // Return the whole response for the UI to handle if needed
+      } else {
+        response = await messageService.sendMessage(selectedUser._id, messageData, (percent) => {
+          get().setUploadProgress(tempId, percent);
+        });
+      }
       
       const updatedMessages = get().messages.map(m => m._id === tempId ? { ...response, status: 'sent' } : m);
       const { [tempId]: _, ...remainingProgress } = get().uploadProgress;
@@ -228,6 +245,16 @@ const useChatStore = create((set, get) => ({
 
   _persistCache: () => {
     saveCacheToStorage(get().chatCache);
+  },
+
+  summarizeChat: async (userId) => {
+    try {
+      const response = await chatbotService.summarize(userId);
+      return response.summary;
+    } catch (error) {
+      console.error('Summarization failed:', error);
+      throw error;
+    }
   },
 
   subscribeToMessages: () => {},

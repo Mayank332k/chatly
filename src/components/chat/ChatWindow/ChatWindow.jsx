@@ -5,11 +5,44 @@ import useAuthStore from '../../../store/useAuthStore';
 import useChatStore from '../../../store/useChatStore';
 import styles from './ChatWindow.module.css';
 
+const SummarizeIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    {/* AI Sparkle Accent 🪄 */}
+    <path d="M16 3l1 2 2 1-2 1-1 2-1-2-2-1 2-1 1-2z" fill="currentColor" stroke="none" />
+    <path d="M19 10l0.5 1 1 0.5-1 0.5-0.5 1-0.5-1-1-0.5 1-0.5 0.5-1z" fill="currentColor" opacity="0.6" stroke="none" />
+    
+    {/* Summarization Lines 📝 */}
+    <path d="M4 7h8" />
+    <path d="M4 12h12" />
+    <path d="M4 17h10" />
+  </svg>
+);
+
+const SummaryLoader = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" className={styles.premiumLoaderSVG}>
+    <defs>
+      <linearGradient id="spinnerGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stopColor="#ff6b6b" />
+        <stop offset="50%" stopColor="#1dd1a1" />
+        <stop offset="100%" stopColor="#48dbfb" />
+      </linearGradient>
+    </defs>
+    <path 
+      d="M12 2A10 10 0 1 0 22 12" 
+      stroke="url(#spinnerGradient)" 
+      strokeWidth="3" 
+      strokeLinecap="round" 
+      fill="none" 
+    />
+  </svg>
+);
+
 const ChatWindow = () => {
   const messages = useChatStore(state => state.messages);
   const loading = useChatStore(state => state.isMessagesLoading);
   const selectedUser = useChatStore(state => state.selectedUser);
   const getMessages = useChatStore(state => state.getMessages);
+  const summarizeChat = useChatStore(state => state.summarizeChat);
   const subscribeToMessages = useChatStore(state => state.subscribeToMessages);
   const unsubscribeFromMessages = useChatStore(state => state.unsubscribeFromMessages);
   const sendMessage = useChatStore(state => state.sendMessage);
@@ -41,6 +74,11 @@ const ChatWindow = () => {
   const [selectedImageModal, setSelectedImageModal] = useState(null);
   const [optimisticMessages, setOptimisticMessages] = useState([]);
   const [loadedImages, setLoadedImages] = useState({}); // 🛡️ Track which images have fully downloaded
+
+  // 🤖 Pulse AI Summary State
+  const [isAnimatingSummary, setIsAnimatingSummary] = useState(false);
+  const [summaryResult, setSummaryResult] = useState(null);
+  const [isSummaryOpen, setIsSummaryOpen] = useState(false);
 
   useEffect(() => {
     if (selectedUser?._id) {
@@ -179,6 +217,54 @@ const ChatWindow = () => {
     }
   };
 
+  const handleSummarize = async () => {
+    if (!selectedUser || isAnimatingSummary) return;
+    setIsAnimatingSummary(true);
+    setIsSummaryOpen(false);
+    try {
+      const result = await summarizeChat(selectedUser._id);
+      // Wait a moment so the premium wave animation can be admired
+      setTimeout(() => {
+        setSummaryResult(result);
+        setIsAnimatingSummary(false);
+        setIsSummaryOpen(true);
+      }, 2500);
+    } catch (err) {
+      console.error('Error summarizing chat:', err);
+      setIsAnimatingSummary(false);
+    }
+  };
+
+  const formatSummary = (text) => {
+    if (!text) return null;
+    // Updated regex to include markdown bold (**) patterns
+    const regex = /(\*\*.*?\*\*)|([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)|(\b\d+(?:st|nd|rd|th)?\b|\b\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}\b|\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{1,2}(?:st|nd|rd|th)?(?:, \d{4})?\b)|("[^"]+"|\b[A-Z]{2,}\b)/g;
+    
+    const skipWords = new Set(['The', 'A', 'An', 'This', 'That', 'It', 'He', 'She', 'They', 'We', 'You', 'I', 'However', 'Therefore', 'In', 'On', 'At', 'To', 'And', 'But', 'Or', 'As', 'If', 'When', 'Then', 'So', 'For']);
+    const tokens = text.split(regex);
+    
+    return tokens.map((token, i) => {
+      if (!token) return null;
+
+      // Handle Markdown Bold **Text**
+      if (token.startsWith('**') && token.endsWith('**')) {
+        const cleanToken = token.replace(/\*\*/g, '');
+        return <span key={i} className={styles.highlightTerm}>{cleanToken}</span>;
+      }
+
+      if (/^[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*$/.test(token) && !skipWords.has(token)) {
+        return <span key={i} className={styles.highlightName}>{token}</span>;
+      }
+      if (/^\b\d/.test(token) || /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/.test(token)) {
+        return <span key={i} className={styles.highlightNumber}>{token}</span>;
+      }
+      if (/^"/.test(token) || /^[A-Z]{2,}$/.test(token)) {
+        return <span key={i} className={styles.highlightTerm}>{token}</span>;
+      }
+      return <span key={i}>{token}</span>;
+    });
+  };
+
   return (
     <div className={styles.chatWrapper}>
       {/* Lightbox Modal 📸 */}
@@ -207,6 +293,32 @@ const ChatWindow = () => {
         )}
       </AnimatePresence>
 
+      {/* 🔮 Pulse AI Summary Mini Window */}
+      <AnimatePresence>
+        {isSummaryOpen && summaryResult && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9, y: -20, filter: 'blur(10px)' }}
+            animate={{ opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' }}
+            exit={{ opacity: 0, scale: 0.9, y: -20, filter: 'blur(10px)' }}
+            transition={{ type: 'spring', damping: 20, stiffness: 200 }}
+            className={styles.summaryMiniWindow}
+          >
+            <div className={styles.summaryMiniHeader}>
+              <div className={styles.summaryMiniTitle}>
+                <SummarizeIcon />
+                Chat Summary
+              </div>
+              <button onClick={() => setIsSummaryOpen(false)} className={styles.summaryMiniClose}>
+                <X size={16} />
+              </button>
+            </div>
+            <div className={styles.summaryMiniBody}>
+              {formatSummary(summaryResult)}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <header className={styles.chatHeader}>
         <div className={styles.headerLeft}>
           <button 
@@ -231,6 +343,26 @@ const ChatWindow = () => {
             </span>
           </div>
         </div>
+
+          <motion.button 
+            whileHover={{ scale: 1.1, backgroundColor: 'rgba(255, 255, 255, 0.1)' }}
+            whileTap={{ scale: 0.9 }}
+            className={styles.aiToggleBtn}
+            onClick={handleSummarize}
+            title="Summarize Chat"
+            disabled={isAnimatingSummary}
+            style={{ 
+              padding: '10px', 
+              borderRadius: '50%', 
+              width: '42px', 
+              height: '42px', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center' 
+            }}
+          >
+            {isAnimatingSummary ? <SummaryLoader /> : <SummarizeIcon />}
+          </motion.button>
       </header>
 
       <div className={styles.messageList} ref={scrollRef}>
@@ -311,7 +443,14 @@ const ChatWindow = () => {
                           )}
                         </div>
                       )}
-                      {msg.text && <p style={{ padding: msg.image ? "0 12px 14px 12px" : "0" }}>{msg.text}</p>}
+                      {msg.text && (
+                        <p 
+                          className={isAnimatingSummary ? styles.textWaveAnimation : ""} 
+                          style={{ padding: msg.image ? "0 12px 14px 12px" : "0" }}
+                        >
+                          {msg.text}
+                        </p>
+                      )}
                     </div>
 
                     <div className={styles.timestampContainer}>
