@@ -1,7 +1,6 @@
 import api from './api';
 
 const messageService = {
-  // 1. GET USERS: Fetch sidebar contacts
   getUsers: async () => {
     try {
       // Bypassing Safari caching with a unique timestamp
@@ -22,7 +21,7 @@ const messageService = {
     }
   },
 
-  // 3. SEND MESSAGE: Let Axios handle Content-Type (FormData vs JSON)
+  
   sendMessage: async (userId, data, onProgress) => {
     try {
       // Direct pass without manual headers for proper Boundary detection
@@ -49,6 +48,36 @@ const messageService = {
       throw error.response?.data?.message || 'Error marking messages as read';
     }
   },
+
+  // 5. CLEAR CHAT: Delete all messages for the current user
+  clearChat: async (userId) => {
+    try {
+      const response = await api.delete(`/messages/clear/${userId}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data?.message || error.response?.data?.error || 'Error clearing chat';
+    }
+  },
+
+  // 6. DELETE FOR ME: Delete a specific message for the current user
+  deleteForMe: async (messageId) => {
+    try {
+      const response = await api.delete(`/messages/delete-me/${messageId}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data?.message || error.response?.data?.error || 'Error deleting message';
+    }
+  },
+
+  // 7. DELETE FOR EVERYONE: Delete a message for all participants
+  deleteForEveryone: async (messageId) => {
+    try {
+      const response = await api.delete(`/messages/delete-everyone/${messageId}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data?.message || error.response?.data?.error || 'Error deleting message for everyone';
+    }
+  }
 };
 
 export default messageService;

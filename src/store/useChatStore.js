@@ -257,6 +257,71 @@ const useChatStore = create((set, get) => ({
     }
   },
 
+  clearChat: async (userId) => {
+    try {
+      await messageService.clearChat(userId);
+      const { chatCache } = get();
+      const newCache = { ...chatCache };
+      delete newCache[userId];
+      set({ messages: [], chatCache: newCache });
+      saveCacheToStorage(newCache);
+    } catch (error) {
+      console.error('Error clearing chat:', error);
+      throw error;
+    }
+  },
+
+  deleteForMe: async (messageId) => {
+    try {
+      await messageService.deleteForMe(messageId);
+      const { messages, chatCache, selectedUser } = get();
+      
+      const updatedMessages = messages.filter(msg => msg._id !== messageId);
+      const newCache = { ...chatCache };
+      
+      if (selectedUser) {
+         newCache[selectedUser._id] = (newCache[selectedUser._id] || []).filter(msg => msg._id !== messageId);
+      } else {
+         for (const key in newCache) {
+             newCache[key] = newCache[key].filter(msg => msg._id !== messageId);
+         }
+      }
+
+      set({ messages: updatedMessages, chatCache: newCache });
+      saveCacheToStorage(newCache);
+    } catch (error) {
+      console.error('Error deleting message for me:', error);
+      throw error;
+    }
+  },
+
+  deleteForEveryone: async (messageId) => {
+    try {
+      await messageService.deleteForEveryone(messageId);
+      const { messages, chatCache, selectedUser } = get();
+      
+      const updateMsg = (msg) => 
+        msg._id === messageId ? { ...msg, text: "Deleted message", image: null, isDeletedForEveryone: true } : msg;
+      
+      const updatedMessages = messages.map(updateMsg);
+      const newCache = { ...chatCache };
+      
+      if (selectedUser) {
+         newCache[selectedUser._id] = (newCache[selectedUser._id] || []).map(updateMsg);
+      } else {
+         for (const key in newCache) {
+             newCache[key] = newCache[key].map(updateMsg);
+         }
+      }
+
+      set({ messages: updatedMessages, chatCache: newCache });
+      saveCacheToStorage(newCache);
+    } catch (error) {
+      console.error('Error deleting message for everyone:', error);
+      throw error;
+    }
+  },
+
   subscribeToMessages: () => {},
   unsubscribeFromMessages: () => {},
 }));

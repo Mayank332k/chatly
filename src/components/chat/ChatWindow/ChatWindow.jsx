@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { User, Send, Plus, Loader2, X, Check, CheckCheck, Smile, Mic, ArrowLeft, ArrowUp } from 'lucide-react';
+import { User, Send, Plus, Loader2, X, Check, CheckCheck, Smile, Mic, ArrowLeft, ArrowUp, Trash2, MoreVertical } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import useAuthStore from '../../../store/useAuthStore';
 import useChatStore from '../../../store/useChatStore';
@@ -48,6 +48,9 @@ const ChatWindow = () => {
   const sendMessage = useChatStore(state => state.sendMessage);
   const uploadProgress = useChatStore(state => state.uploadProgress);
   const markMessagesAsRead = useChatStore(state => state.markMessagesAsRead);
+  const clearChat = useChatStore(state => state.clearChat);
+  const deleteForMe = useChatStore(state => state.deleteForMe);
+  const deleteForEveryone = useChatStore(state => state.deleteForEveryone);
 
   const authUser = useAuthStore(state => state.authUser);
   const onlineUsers = useAuthStore(state => state.onlineUsers);
@@ -79,6 +82,11 @@ const ChatWindow = () => {
   const [isAnimatingSummary, setIsAnimatingSummary] = useState(false);
   const [summaryResult, setSummaryResult] = useState(null);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
+
+  // 🗑️ Message Deletion State
+  const [messageToDelete, setMessageToDelete] = useState(null);
+  const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
+  const [isClearChatModalOpen, setIsClearChatModalOpen] = useState(false);
 
   useEffect(() => {
     if (selectedUser?._id) {
@@ -344,13 +352,12 @@ const ChatWindow = () => {
           </div>
         </div>
 
+        <div style={{ position: 'relative' }}>
           <motion.button 
-            whileHover={{ scale: 1.1, backgroundColor: 'rgba(255, 255, 255, 0.1)' }}
+            whileHover={{ scale: 1.1, backgroundColor: 'rgba(255, 255, 255, 0.05)' }}
             whileTap={{ scale: 0.9 }}
             className={styles.aiToggleBtn}
-            onClick={handleSummarize}
-            title="Summarize Chat"
-            disabled={isAnimatingSummary}
+            onClick={() => setIsHeaderMenuOpen(!isHeaderMenuOpen)}
             style={{ 
               padding: '10px', 
               borderRadius: '50%', 
@@ -358,11 +365,100 @@ const ChatWindow = () => {
               height: '42px', 
               display: 'flex', 
               alignItems: 'center', 
-              justifyContent: 'center' 
+              justifyContent: 'center',
+              border: 'none',
+              background: 'transparent'
             }}
           >
-            {isAnimatingSummary ? <SummaryLoader /> : <SummarizeIcon />}
+            <MoreVertical size={20} color="var(--text-secondary)" />
           </motion.button>
+
+          <AnimatePresence>
+            {isHeaderMenuOpen && (
+              <>
+                {/* Invisible backdrop to close menu on click away */}
+                <div 
+                  style={{ position: 'fixed', inset: 0, zIndex: 1000 }} 
+                  onClick={() => setIsHeaderMenuOpen(false)} 
+                />
+                
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                  transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+                  style={{ 
+                    position: 'absolute', 
+                    top: '52px', 
+                    right: '0', 
+                    width: '200px', 
+                    background: 'rgba(25, 25, 25, 0.45)', 
+                    backdropFilter: 'blur(30px) saturate(150%)',
+                    WebkitBackdropFilter: 'blur(30px) saturate(150%)',
+                    borderRadius: '24px',
+                    padding: '12px',
+                    boxShadow: '0 20px 50px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(255,255,255,0.08)',
+                    zIndex: 1001,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px'
+                  }}
+                >
+                  <button 
+                    onClick={() => {
+                      setIsHeaderMenuOpen(false);
+                      handleSummarize();
+                    }}
+                    disabled={isAnimatingSummary}
+                    style={{ 
+                      width: '100%', padding: '12px 14px', background: 'transparent', border: 'none', 
+                      borderRadius: '16px', color: '#fff', textAlign: 'left', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', gap: '12px', fontSize: '15px',
+                      transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
+                      e.currentTarget.style.transform = 'scale(1.02)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent';
+                      e.currentTarget.style.transform = 'scale(1)';
+                    }}
+                  >
+                    <SummarizeIcon />
+                    <span style={{ fontWeight: '500' }}>Summarize Chat</span>
+                  </button>
+
+                  <div style={{ height: '1px', background: 'rgba(255,255,255,0.05)', margin: '4px 8px' }} />
+
+                  <button 
+                    onClick={() => {
+                      setIsHeaderMenuOpen(false);
+                      setIsClearChatModalOpen(true);
+                    }}
+                    style={{ 
+                      width: '100%', padding: '12px 14px', background: 'transparent', border: 'none', 
+                      borderRadius: '16px', color: '#ff5c5c', textAlign: 'left', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', gap: '12px', fontSize: '15px',
+                      transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(255, 92, 92, 0.1)';
+                      e.currentTarget.style.transform = 'scale(1.02)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent';
+                      e.currentTarget.style.transform = 'scale(1)';
+                    }}
+                  >
+                    <Trash2 size={18} />
+                    <span style={{ fontWeight: '500' }}>Clear Chat</span>
+                  </button>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+        </div>
       </header>
 
       <div className={styles.messageList} ref={scrollRef}>
@@ -372,7 +468,7 @@ const ChatWindow = () => {
              <motion.div 
                initial={{ width: "0%" }}
                animate={{ width: "95%" }}
-               transition={{ duration: 1, ease: "easeInOut" }}
+               transition={{ duration: 1, duration: 2.5, ease: "easeInOut" }}
                className={styles.topProgressInner} 
              />
           </div>
@@ -415,7 +511,26 @@ const ChatWindow = () => {
                    transition={{ type: 'tween', ease: [0.16, 1, 0.3, 1], duration: 0.85 }}
                    className={`${styles.msgItem} ${isSentByMe ? styles.msgSent : styles.msgReceived}`}
                  >
-                    <div className={`${styles.bubble} ${isSentByMe ? styles.bubbleSent : styles.bubbleReceived} ${msg.image ? styles.bubbleWithImage : ""}`}>
+                    <div 
+                      className={`${styles.bubble} ${isSentByMe ? styles.bubbleSent : styles.bubbleReceived} ${msg.image ? styles.bubbleWithImage : ""} ${msg.isDeletedForEveryone ? styles.bubbleDeleted : ""}`}
+                      onClick={() => {
+                        if (msg.status !== 'sending' && !msg.isDeletedForEveryone) {
+                          setMessageToDelete({ ...msg, isSentByMe });
+                        }
+                      }}
+                      onContextMenu={(e) => {
+                        if (msg.status !== 'sending' && !msg.isDeletedForEveryone) {
+                          e.preventDefault();
+                          setMessageToDelete({ ...msg, isSentByMe });
+                        }
+                      }}
+                      style={{ 
+                        cursor: msg.status === 'sending' || msg.isDeletedForEveryone ? 'default' : 'pointer', 
+                        opacity: msg.isDeletedForEveryone ? 0.7 : 1,
+                        userSelect: 'none',
+                        WebkitTouchCallout: 'none'
+                      }}
+                    >
                       {msg.image && (
                         <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 'inherit' }}>
                           {/* 🛡️ Receiver Side Download Spinner */}
@@ -428,7 +543,12 @@ const ChatWindow = () => {
                             src={msg.image} 
                             alt="Media" 
                             className={`${styles.chatImage} ${!isImageLoaded && msg.status !== 'sending' ? styles.blurredImage : ''}`} 
-                            onClick={() => msg.status !== 'sending' && isImageLoaded && setSelectedImageModal(msg.image)}
+                            onClick={(e) => {
+                              if (msg.status !== 'sending' && isImageLoaded) {
+                                e.stopPropagation();
+                                setSelectedImageModal(msg.image);
+                              }
+                            }}
                             onLoad={() => setLoadedImages(prev => ({ ...prev, [msg._id]: true }))}
                             style={{ 
                               cursor: msg.status === 'sending' || !isImageLoaded ? 'default' : 'pointer'
@@ -446,7 +566,7 @@ const ChatWindow = () => {
                       {msg.text && (
                         <p 
                           className={isAnimatingSummary ? styles.textWaveAnimation : ""} 
-                          style={{ padding: msg.image ? "0 12px 14px 12px" : "0" }}
+                          style={{ padding: msg.image ? "0 12px 14px 12px" : "0", fontStyle: msg.isDeletedForEveryone ? "italic" : "normal" }}
                         >
                           {msg.text}
                         </p>
@@ -577,6 +697,157 @@ const ChatWindow = () => {
           <ArrowUp size={20} strokeWidth={3} />
         </button>
       </footer>
+
+      {/* Message Deletion Modal */}
+      <AnimatePresence>
+        {messageToDelete && (
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }} 
+            className={styles.lightboxOverlay} 
+            onClick={() => setMessageToDelete(null)}
+            style={{ zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}
+          >
+             <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }} 
+              animate={{ scale: 1, opacity: 1 }} 
+              exit={{ scale: 0.95, opacity: 0 }} 
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: 'rgba(25, 25, 25, 0.45)',
+                backdropFilter: 'blur(30px) saturate(150%)',
+                WebkitBackdropFilter: 'blur(30px) saturate(150%)',
+                width: '100%',
+                maxWidth: window.innerWidth < 768 ? '220px' : '300px',
+                padding: window.innerWidth < 768 ? '14px 10px' : '24px 20px', 
+                borderRadius: '35px',
+                display: 'flex', flexDirection: 'column', gap: window.innerWidth < 768 ? '8px' : '14px',
+                boxShadow: '0 20px 50px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(255,255,255,0.08)'
+              }}
+            >
+               <h3 style={{ margin: 0, color: '#ffffff', textAlign: 'center', fontSize: '14px', fontWeight: '600' }}>
+                 Delete message?
+               </h3>
+               
+               {messageToDelete.isSentByMe ? (
+                 <div style={{ display: 'flex', gap: window.innerWidth < 768 ? '6px' : '10px', width: '100%', justifyContent: 'center' }}>
+                    <button 
+                       onClick={() => { deleteForEveryone(messageToDelete._id); setMessageToDelete(null); }}
+                       style={{ flex: 1, padding: window.innerWidth < 768 ? '9px 2px' : '12px 4px', background: '#00d26a', borderRadius: '40px', border: 'none', color: '#ffffff', fontSize: window.innerWidth < 768 ? '10px' : '13px', fontWeight: '700', cursor: 'pointer', transition: 'transform 0.1s' }}
+                       onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.97)'}
+                       onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                       onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                    >
+                      Everyone
+                    </button>
+                    <button 
+                       onClick={() => { deleteForMe(messageToDelete._id); setMessageToDelete(null); }}
+                       style={{ flex: 1, padding: window.innerWidth < 768 ? '9px 2px' : '12px 4px', background: 'rgba(255,255,255,0.12)', borderRadius: '40px', border: 'none', color: '#ffffff', fontSize: window.innerWidth < 768 ? '10px' : '13px', fontWeight: '600', cursor: 'pointer', transition: 'transform 0.1s' }}
+                       onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.97)'}
+                       onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                       onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                    >
+                      For Me
+                    </button>
+                    <button 
+                       onClick={() => setMessageToDelete(null)}
+                       style={{ flex: 1, padding: window.innerWidth < 768 ? '9px 2px' : '12px 4px', background: 'rgba(255,255,255,0.08)', borderRadius: '40px', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: window.innerWidth < 768 ? '10px' : '13px', fontWeight: '600', cursor: 'pointer', transition: 'transform 0.1s' }}
+                       onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.97)'}
+                       onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                       onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                    >
+                      Cancel
+                    </button>
+                 </div>
+               ) : (
+                 <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                    <button 
+                       onClick={() => setMessageToDelete(null)}
+                       style={{ flex: 1, padding: window.innerWidth < 768 ? '10px' : '13px', background: 'rgba(255,255,255,0.08)', borderRadius: '40px', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: window.innerWidth < 768 ? '12px' : '14px', fontWeight: '600', cursor: 'pointer', transition: 'transform 0.1s' }}
+                       onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.97)'}
+                       onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                       onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                       onClick={() => { deleteForMe(messageToDelete._id); setMessageToDelete(null); }}
+                       style={{ flex: 1, padding: window.innerWidth < 768 ? '10px' : '13px', background: '#00d26a', borderRadius: '40px', border: 'none', color: '#ffffff', fontSize: window.innerWidth < 768 ? '12px' : '14px', fontWeight: '700', cursor: 'pointer', transition: 'transform 0.1s' }}
+                       onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.97)'}
+                       onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                       onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                    >
+                      Delete
+                    </button>
+                 </div>
+               )}
+             </motion.div>
+          </motion.div>
+        )}
+        
+        {/* 🧹 Clear Chat Confirmation Modal */}
+        {isClearChatModalOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }} 
+            className={styles.lightboxOverlay} 
+            onClick={() => setIsClearChatModalOpen(false)}
+            style={{ zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}
+          >
+             <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }} 
+              animate={{ scale: 1, opacity: 1 }} 
+              exit={{ scale: 0.95, opacity: 0 }} 
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: 'rgba(25, 25, 25, 0.45)',
+                backdropFilter: 'blur(30px) saturate(150%)',
+                WebkitBackdropFilter: 'blur(30px) saturate(150%)',
+                width: '100%',
+                maxWidth: window.innerWidth < 768 ? '220px' : '300px',
+                padding: window.innerWidth < 768 ? '14px 10px' : '24px 20px', 
+                borderRadius: '35px',
+                display: 'flex', flexDirection: 'column', gap: window.innerWidth < 768 ? '8px' : '14px',
+                boxShadow: '0 20px 50px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(255,255,255,0.08)'
+              }}
+            >
+               <div style={{ textAlign: 'center' }}>
+                 <h3 style={{ margin: '0 0 4px 0', color: '#ffffff', fontSize: '15px', fontWeight: '600' }}>
+                   Clear chat?
+                 </h3>
+                 <p style={{ margin: 0, color: 'rgba(255,255,255,0.4)', fontSize: '11px', lineHeight: '1.4' }}>
+                   This action cannot be undone.
+                 </p>
+               </div>
+               
+               <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                 <button 
+                    onClick={() => setIsClearChatModalOpen(false)}
+                    style={{ flex: 1, padding: window.innerWidth < 768 ? '10px' : '13px', background: 'rgba(255,255,255,0.08)', borderRadius: '40px', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: window.innerWidth < 768 ? '12px' : '14px', fontWeight: '600', cursor: 'pointer', transition: 'transform 0.1s' }}
+                    onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.97)'}
+                    onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                    onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                 >
+                   Cancel
+                 </button>
+                 <button 
+                    onClick={() => { clearChat(selectedUser._id); setIsClearChatModalOpen(false); }}
+                    style={{ flex: 1, padding: window.innerWidth < 768 ? '10px' : '13px', background: '#ff5c5c', borderRadius: '40px', border: 'none', color: '#ffffff', fontSize: window.innerWidth < 768 ? '12px' : '14px', fontWeight: '700', cursor: 'pointer', transition: 'transform 0.1s' }}
+                    onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.97)'}
+                    onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                    onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                 >
+                   Clear
+                 </button>
+               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

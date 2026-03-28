@@ -208,6 +208,30 @@ const useAuthStore = create((set, get) => ({
       chatStoreRef.getState()._persistCache();
     });
 
+    // 🗑️ Listen for delete for everyone events
+    newSocket.on('messageDeletedForEveryone', ({ messageId }) => {
+      console.log('🗑️ Message deleted for everyone:', messageId);
+      if (!chatStoreRef) return;
+
+      chatStoreRef.setState((state) => {
+        const { messages, chatCache } = state;
+
+        const updateMsg = (msg) => 
+          msg._id === messageId ? { ...msg, text: "Deleted message", image: null, isDeletedForEveryone: true } : msg;
+
+        const updatedMessages = messages.map(updateMsg);
+        
+        const updatedCache = {};
+        for (const [key, msgs] of Object.entries(chatCache)) {
+           updatedCache[key] = msgs.map(updateMsg);
+        }
+
+        return { messages: updatedMessages, chatCache: updatedCache };
+      });
+      
+      chatStoreRef.getState()._persistCache();
+    });
+
     // ✍️ Listen for typing events
     newSocket.on('typing', (senderId) => {
       if (!chatStoreRef) return;
