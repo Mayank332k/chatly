@@ -720,22 +720,22 @@ const ChatWindow = () => {
                 backdropFilter: 'blur(30px) saturate(150%)',
                 WebkitBackdropFilter: 'blur(30px) saturate(150%)',
                 width: '100%',
-                maxWidth: window.innerWidth < 768 ? '220px' : '300px',
-                padding: window.innerWidth < 768 ? '14px 10px' : '24px 20px', 
-                borderRadius: '35px',
-                display: 'flex', flexDirection: 'column', gap: window.innerWidth < 768 ? '8px' : '14px',
+                maxWidth: window.innerWidth < 768 ? '285px' : '300px',
+                padding: window.innerWidth < 768 ? '22px 18px' : '24px 20px', 
+                borderRadius: '50px',
+                display: 'flex', flexDirection: 'column', gap: window.innerWidth < 768 ? '14px' : '14px',
                 boxShadow: '0 20px 50px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(255,255,255,0.08)'
               }}
             >
-               <h3 style={{ margin: 0, color: '#ffffff', textAlign: 'center', fontSize: '14px', fontWeight: '600' }}>
+               <h3 style={{ margin: 0, color: '#ffffff', textAlign: 'center', fontSize: window.innerWidth < 768 ? '18px' : '14px', fontWeight: '600' }}>
                  Delete message?
                </h3>
                
                {messageToDelete.isSentByMe ? (
-                 <div style={{ display: 'flex', gap: window.innerWidth < 768 ? '6px' : '10px', width: '100%', justifyContent: 'center' }}>
+                 <div style={{ display: 'flex', gap: '10px', width: '100%', justifyContent: 'center' }}>
                     <button 
                        onClick={() => { deleteForEveryone(messageToDelete._id); setMessageToDelete(null); }}
-                       style={{ flex: 1, padding: window.innerWidth < 768 ? '9px 2px' : '12px 4px', background: '#00d26a', borderRadius: '40px', border: 'none', color: '#ffffff', fontSize: window.innerWidth < 768 ? '10px' : '13px', fontWeight: '700', cursor: 'pointer', transition: 'transform 0.1s' }}
+                       style={{ flex: 1, padding: window.innerWidth < 768 ? '12px 6px' : '12px 4px', background: '#00d26a', borderRadius: '40px', border: 'none', color: '#ffffff', fontSize: window.innerWidth < 768 ? '15px' : '13px', fontWeight: '700', cursor: 'pointer', transition: 'transform 0.1s' }}
                        onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.97)'}
                        onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
                        onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
@@ -744,7 +744,7 @@ const ChatWindow = () => {
                     </button>
                     <button 
                        onClick={() => { deleteForMe(messageToDelete._id); setMessageToDelete(null); }}
-                       style={{ flex: 1, padding: window.innerWidth < 768 ? '9px 2px' : '12px 4px', background: 'rgba(255,255,255,0.12)', borderRadius: '40px', border: 'none', color: '#ffffff', fontSize: window.innerWidth < 768 ? '10px' : '13px', fontWeight: '600', cursor: 'pointer', transition: 'transform 0.1s' }}
+                       style={{ flex: 1, padding: window.innerWidth < 768 ? '12px 6px' : '12px 4px', background: 'rgba(255,255,255,0.12)', borderRadius: '40px', border: 'none', color: '#ffffff', fontSize: window.innerWidth < 768 ? '15px' : '13px', fontWeight: '600', cursor: 'pointer', transition: 'transform 0.1s' }}
                        onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.97)'}
                        onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
                        onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
@@ -753,7 +753,7 @@ const ChatWindow = () => {
                     </button>
                     <button 
                        onClick={() => setMessageToDelete(null)}
-                       style={{ flex: 1, padding: window.innerWidth < 768 ? '9px 2px' : '12px 4px', background: 'rgba(255,255,255,0.08)', borderRadius: '40px', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: window.innerWidth < 768 ? '10px' : '13px', fontWeight: '600', cursor: 'pointer', transition: 'transform 0.1s' }}
+                       style={{ flex: 1, padding: window.innerWidth < 768 ? '12px 6px' : '12px 4px', background: 'rgba(255,255,255,0.08)', borderRadius: '40px', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: window.innerWidth < 768 ? '15px' : '13px', fontWeight: '600', cursor: 'pointer', transition: 'transform 0.1s' }}
                        onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.97)'}
                        onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
                        onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
@@ -765,7 +765,7 @@ const ChatWindow = () => {
                  <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
                     <button 
                        onClick={() => setMessageToDelete(null)}
-                       style={{ flex: 1, padding: window.innerWidth < 768 ? '10px' : '13px', background: 'rgba(255,255,255,0.08)', borderRadius: '40px', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: window.innerWidth < 768 ? '12px' : '14px', fontWeight: '600', cursor: 'pointer', transition: 'transform 0.1s' }}
+                       style={{ flex: 1, padding: window.innerWidth < 768 ? '12px' : '13px', background: 'rgba(255,255,255,0.08)', borderRadius: '40px', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: window.innerWidth < 768 ? '15px' : '14px', fontWeight: '600', cursor: 'pointer', transition: 'transform 0.1s' }}
                        onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.97)'}
                        onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
                        onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
@@ -774,7 +774,7 @@ const ChatWindow = () => {
                     </button>
                     <button 
                        onClick={() => { deleteForMe(messageToDelete._id); setMessageToDelete(null); }}
-                       style={{ flex: 1, padding: window.innerWidth < 768 ? '10px' : '13px', background: '#00d26a', borderRadius: '40px', border: 'none', color: '#ffffff', fontSize: window.innerWidth < 768 ? '12px' : '14px', fontWeight: '700', cursor: 'pointer', transition: 'transform 0.1s' }}
+                       style={{ flex: 1, padding: window.innerWidth < 768 ? '12px' : '13px', background: '#00d26a', borderRadius: '40px', border: 'none', color: '#ffffff', fontSize: window.innerWidth < 768 ? '15px' : '14px', fontWeight: '700', cursor: 'pointer', transition: 'transform 0.1s' }}
                        onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.97)'}
                        onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
                        onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
@@ -808,18 +808,18 @@ const ChatWindow = () => {
                 backdropFilter: 'blur(30px) saturate(150%)',
                 WebkitBackdropFilter: 'blur(30px) saturate(150%)',
                 width: '100%',
-                maxWidth: window.innerWidth < 768 ? '220px' : '300px',
-                padding: window.innerWidth < 768 ? '14px 10px' : '24px 20px', 
-                borderRadius: '35px',
-                display: 'flex', flexDirection: 'column', gap: window.innerWidth < 768 ? '8px' : '14px',
+                maxWidth: window.innerWidth < 768 ? '285px' : '300px',
+                padding: window.innerWidth < 768 ? '22px 18px' : '24px 20px', 
+                borderRadius: '50px',
+                display: 'flex', flexDirection: 'column', gap: window.innerWidth < 768 ? '14px' : '14px',
                 boxShadow: '0 20px 50px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(255,255,255,0.08)'
               }}
             >
                <div style={{ textAlign: 'center' }}>
-                 <h3 style={{ margin: '0 0 4px 0', color: '#ffffff', fontSize: '15px', fontWeight: '600' }}>
+                 <h3 style={{ margin: '0 0 4px 0', color: '#ffffff', fontSize: window.innerWidth < 768 ? '18px' : '16px', fontWeight: '600' }}>
                    Clear chat?
                  </h3>
-                 <p style={{ margin: 0, color: 'rgba(255,255,255,0.4)', fontSize: '11px', lineHeight: '1.4' }}>
+                 <p style={{ margin: 0, color: 'rgba(255,255,255,0.4)', fontSize: window.innerWidth < 768 ? '13px' : '11px', lineHeight: '1.4' }}>
                    This action cannot be undone.
                  </p>
                </div>
@@ -827,7 +827,7 @@ const ChatWindow = () => {
                <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
                  <button 
                     onClick={() => setIsClearChatModalOpen(false)}
-                    style={{ flex: 1, padding: window.innerWidth < 768 ? '10px' : '13px', background: 'rgba(255,255,255,0.08)', borderRadius: '40px', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: window.innerWidth < 768 ? '12px' : '14px', fontWeight: '600', cursor: 'pointer', transition: 'transform 0.1s' }}
+                    style={{ flex: 1, padding: window.innerWidth < 768 ? '12px' : '13px', background: 'rgba(255,255,255,0.08)', borderRadius: '40px', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: window.innerWidth < 768 ? '15px' : '14px', fontWeight: '600', cursor: 'pointer', transition: 'transform 0.1s' }}
                     onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.97)'}
                     onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
                     onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
@@ -836,7 +836,7 @@ const ChatWindow = () => {
                  </button>
                  <button 
                     onClick={() => { clearChat(selectedUser._id); setIsClearChatModalOpen(false); }}
-                    style={{ flex: 1, padding: window.innerWidth < 768 ? '10px' : '13px', background: '#ff5c5c', borderRadius: '40px', border: 'none', color: '#ffffff', fontSize: window.innerWidth < 768 ? '12px' : '14px', fontWeight: '700', cursor: 'pointer', transition: 'transform 0.1s' }}
+                    style={{ flex: 1, padding: window.innerWidth < 768 ? '12px' : '13px', background: '#ff5c5c', borderRadius: '40px', border: 'none', color: '#ffffff', fontSize: window.innerWidth < 768 ? '15px' : '14px', fontWeight: '700', cursor: 'pointer', transition: 'transform 0.1s' }}
                     onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.97)'}
                     onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
                     onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
