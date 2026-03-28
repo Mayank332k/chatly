@@ -448,35 +448,42 @@
   cursor: pointer;
 }
 
-/* 🔮 AI Summary Mini Window - Glossy & Rounded */
+/* 🔮 AI Summary Modal - Adaptive Positioning */
 .summaryMiniWindow {
   position: absolute;
   top: 90px;
-  right: 40px;
+  right: 24px;
   width: 360px;
-  background: rgba(235, 240, 245, 0.4); /* Much more translucent for better blur */
-  backdrop-filter: blur(25px);
+  background: rgba(235, 240, 245, 0.45);
+  backdrop-filter: blur(30px) saturate(180%);
   -webkit-backdrop-filter: blur(30px) saturate(180%);
-  border: 0.1px solid rgba(255, 255, 255, 0.6);
-  border-radius: 40px;
-  padding: 20px;
+  border: 1.5px solid rgba(255, 255, 255, 0.6);
+  border-radius: 28px;
+  padding: 18px;
   box-shadow: 
-    0 4px 12px rgba(0, 0, 0, 0.05),
-    0 20px 60px rgba(0, 0, 0, 0.1),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.4);
-  z-index: 1000;
-  color: #2b2b2b;
+    0 10px 30px rgba(0, 0, 0, 0.1),
+    0 40px 100px rgba(0, 0, 0, 0.3);
+  z-index: 10000;
+  color: #1a1a1a;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
+  will-change: transform, backdrop-filter;
 }
 
 @media (max-width: 768px) {
   .summaryMiniWindow {
-    width: 92%;
-    right: 4%;
-    top: 80px;
-    border-radius: 24px;
+    position: fixed; 
+    top: 100px;
+    left: 5%;
+    right: 5%;
+    width: auto;
+    max-width: none;
+    border-radius: 32px;
+    padding: 24px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 40px 100px rgba(0, 0, 0, 0.4);
   }
 }
 
