@@ -479,11 +479,15 @@
     right: 5%;
     width: auto;
     max-width: none;
+    background: #f2f2f7; /* Solid background for mobile */
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border: 1px solid #ddd;
     border-radius: 32px;
     padding: 24px;
     max-height: 80vh;
     overflow-y: auto;
-    box-shadow: 0 40px 100px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 40px 100px rgba(0, 0, 0, 0.5); /* Enhanced shadow for solid depth */
   }
 }
 
@@ -547,10 +551,10 @@
   background: linear-gradient(
     0deg, 
     #ff6b6b, 
-    #feca57, 
+    hsla(41, 99%, 67%, 0.737), 
     #1dd1a1, 
     #48dbfb, 
-    #ff6b6b
+    #ff6b6bbd
   );
   background-size: 100% 400%;
   color: transparent !important;
