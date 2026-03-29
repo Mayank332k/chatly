@@ -14,6 +14,8 @@ const Sidebar = ({ onSelectUser }) => {
   const authUser = useAuthStore(state => state.authUser);
   const onlineUsers = useAuthStore(state => state.onlineUsers);
   const logout = useAuthStore(state => state.logout);
+  const typingUsers = useChatStore(state => state.typingUsers);
+  const isAiThinking = useChatStore(state => state.isAiThinking);
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
@@ -90,7 +92,7 @@ const Sidebar = ({ onSelectUser }) => {
                 ) : (
                   <div className={styles.defaultPfp}><User size={20} /></div>
                 )}
-                {onlineUsers.some(id => String(id) === String(user._id)) && <div className={styles.onlineStatus} />}
+                {(user.username === 'ai_assistant' || onlineUsers.some(id => String(id) === String(user._id))) && <div className={styles.onlineStatus} />}
               </div>
 
               <div className={styles.contactMeta}>
@@ -104,7 +106,13 @@ const Sidebar = ({ onSelectUser }) => {
                 </div>
                 <div className={styles.metaBottom}>
                   <span className={styles.lastMessage}>
-                    {user.lastMessage || `Say hi to ${user.fullName.split(' ')[0]}! 👋`}
+                    { (typingUsers.includes(String(user._id)) || (user.username === 'ai_assistant' && isAiThinking)) ? (
+                       <span style={{ color: 'var(--accent-primary)', fontWeight: '600', animation: 'pulse 1.5s infinite' }}>
+                         {user.username === 'ai_assistant' ? 'Thinking... 🪄' : 'Typing...'}
+                       </span>
+                    ) : (
+                       user.lastMessage || `Say hi to ${user.fullName.split(' ')[0]}! 👋`
+                    )}
                   </span>
                 </div>
               </div>

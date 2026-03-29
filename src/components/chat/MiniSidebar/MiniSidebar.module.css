@@ -57,7 +57,7 @@
     bottom: 24px;
     left: 50%;
     transform: translateX(-50%);
-    width: 220px; /* Compact width for 3 items */
+    width: 280px; /* Compact width for 4 items */
     height: 64px;
     flex-direction: row;
     gap: 0;

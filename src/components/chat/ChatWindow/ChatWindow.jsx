@@ -51,18 +51,21 @@ const ChatWindow = () => {
   const clearChat = useChatStore(state => state.clearChat);
   const deleteForMe = useChatStore(state => state.deleteForMe);
   const deleteForEveryone = useChatStore(state => state.deleteForEveryone);
+  const isAiThinking = useChatStore(state => state.isAiThinking);
 
   const authUser = useAuthStore(state => state.authUser);
   const onlineUsers = useAuthStore(state => state.onlineUsers);
   
   // 🛡️ Type-safe comparison: Convert both sides to String for guaranteed match
-  const isOnline = onlineUsers.some(id => String(id) === String(selectedUser?._id));
+  const isAiAssistant = selectedUser?.username === 'ai_assistant';
+  const isOnline = isAiAssistant || onlineUsers.some(id => String(id) === String(selectedUser?._id));
   
   // 🕵️ Debug: Log to verify matching (remove after confirming)
   console.log('Online Check:', { 
     selectedId: String(selectedUser?._id), 
     onlineIds: onlineUsers.map(String), 
-    result: isOnline 
+    result: isOnline,
+    isAiAssistant
   });
 
   const [newMessage, setNewMessage] = useState('');
@@ -120,7 +123,10 @@ const ChatWindow = () => {
   const typingTimeoutRef = useRef(null);
   const socket = useAuthStore(state => state.socket);
   const typingUsers = useChatStore(state => state.typingUsers);
-  const isTyping = typingUsers.includes(String(selectedUser?._id));
+  
+  // 🤖 AI typing: If we're waiting for AI response, show typing
+  // 👤 User typing: If socket says user is typing, show typing
+  const isTyping = (isAiAssistant && isAiThinking) || typingUsers.includes(String(selectedUser?._id));
 
   const handleTyping = () => {
     if (!socket || !selectedUser) return;
@@ -243,32 +249,50 @@ const ChatWindow = () => {
     }
   };
 
-  const formatSummary = (text) => {
+  const formatRichText = (text, isAi = false) => {
     if (!text) return null;
-    // Updated regex to include markdown bold (**) patterns
-    const regex = /(\*\*.*?\*\*)|([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)|(\b\d+(?:st|nd|rd|th)?\b|\b\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}\b|\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{1,2}(?:st|nd|rd|th)?(?:, \d{4})?\b)|("[^"]+"|\b[A-Z]{2,}\b)/g;
     
-    const skipWords = new Set(['The', 'A', 'An', 'This', 'That', 'It', 'He', 'She', 'They', 'We', 'You', 'I', 'However', 'Therefore', 'In', 'On', 'At', 'To', 'And', 'But', 'Or', 'As', 'If', 'When', 'Then', 'So', 'For']);
+    // 🎨 Regex for Bold, Italic, Names, Numbers, and Quoted terms
+    const regex = /(\*\*.*?\*\*)|(\*.*?\*)|([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)|(\b\d+(?:st|nd|rd|th)?\b|\b\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}\b|\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{1,2}(?:st|nd|rd|th)?(?:, \d{4})?\b)|("[^"]+"|\b[A-Z]{2,}\b)/g;
+    
+    const skipWords = new Set(['The', 'A', 'An', 'This', 'That', 'It', 'He', 'She', 'They', 'We', 'You', 'I', 'However', 'Therefore', 'In', 'On', 'At', 'To', 'And', 'But', 'Or', 'As', 'If', 'When', 'Then', 'So', 'For', 'Hello', 'Hi', 'Hey']);
     const tokens = text.split(regex);
     
     return tokens.map((token, i) => {
       if (!token) return null;
 
-      // Handle Markdown Bold **Text**
+      // 🛡️ Bold: **text** -> Premium Blue Glow for AI
       if (token.startsWith('**') && token.endsWith('**')) {
-        const cleanToken = token.replace(/\*\*/g, '');
-        return <span key={i} className={styles.highlightTerm}>{cleanToken}</span>;
+        const clean = token.replace(/\*\*/g, '');
+        return (
+          <strong key={i} className={isAi ? styles.highlightTerm : ""} style={{ color: isAi ? '#60A5FA' : 'inherit', fontWeight: '700' }}>
+            {clean}
+          </strong>
+        );
       }
 
-      if (/^[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*$/.test(token) && !skipWords.has(token)) {
-        return <span key={i} className={styles.highlightName}>{token}</span>;
+      // 🛡️ Italic: *text* -> Subtle Opacity for secondary info
+      if (token.startsWith('*') && token.endsWith('*')) {
+        const clean = token.replace(/\*/g, '');
+        return <em key={i} style={{ fontStyle: 'italic', opacity: 0.85 }}>{clean}</em>;
       }
-      if (/^\b\d/.test(token) || /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/.test(token)) {
-        return <span key={i} className={styles.highlightNumber}>{token}</span>;
+
+      // 🏷️ Semantic Highlighting (mostly for AI assistant's rich data)
+      if (isAi) {
+        // Names (Proper nouns)
+        if (/^[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*$/.test(token) && !skipWords.has(token)) {
+          return <span key={i} className={styles.highlightName}>{token}</span>;
+        }
+        // Numbers & Dates
+        if (/^\b\d/.test(token) || /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/.test(token)) {
+          return <span key={i} className={styles.highlightNumber}>{token}</span>;
+        }
+        // Quoted Terms or All-Caps
+        if (/^"/.test(token) || /^[A-Z]{2,}$/.test(token)) {
+          return <span key={i} className={styles.highlightTerm}>{token}</span>;
+        }
       }
-      if (/^"/.test(token) || /^[A-Z]{2,}$/.test(token)) {
-        return <span key={i} className={styles.highlightTerm}>{token}</span>;
-      }
+
       return <span key={i}>{token}</span>;
     });
   };
@@ -321,7 +345,7 @@ const ChatWindow = () => {
               </button>
             </div>
             <div className={styles.summaryMiniBody}>
-              {formatSummary(summaryResult)}
+              {formatRichText(summaryResult, true)}
             </div>
           </motion.div>
         )}
@@ -566,9 +590,13 @@ const ChatWindow = () => {
                       {msg.text && (
                         <p 
                           className={isAnimatingSummary ? styles.textWaveAnimation : ""} 
-                          style={{ padding: msg.image ? "0 12px 14px 12px" : "0", fontStyle: msg.isDeletedForEveryone ? "italic" : "normal" }}
+                          style={{ 
+                            padding: msg.image ? "0 12px 14px 12px" : "0", 
+                            fontStyle: msg.isDeletedForEveryone ? "italic" : "normal",
+                            whiteSpace: 'pre-wrap' // 🛡️ Preserve line breaks for lists/spacing
+                          }}
                         >
-                          {msg.text}
+                          {formatRichText(msg.text, !isSentByMe && isAiAssistant)}
                         </p>
                       )}
                     </div>

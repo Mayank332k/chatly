@@ -37,6 +37,7 @@ const useChatStore = create((set, get) => ({
   isMessagesLoading: false,
   chatCache: loadCacheFromStorage(), // 🛡️ Hydrate from localStorage on app start
   typingUsers: [], // ✍️ Track who is typing to us in real-time
+  isAiThinking: false, // 🤖 Track if AI is currently generating a response
 
   pendingQueue: JSON.parse(localStorage.getItem('pending-messages') || '[]'),
   uploadProgress: {},
@@ -154,14 +155,16 @@ const useChatStore = create((set, get) => ({
       if (isAiAssistant) {
         // 🤖 Call the AI talk endpoint instead
         const aiPayload = (messageData instanceof FormData) ? { text: messageData.get('text') } : messageData;
-        const talkResponse = await chatbotService.talk(aiPayload);
-        // Backend returns { reply: "string", aiAgent: { ... } }
-        // The real message is stored in the database, but we want to show it instantly
-        response = talkResponse.aiAgent; // This is a bit tricky: response should be the SAVED message
-        // Actually, getAiTalk emits a newMessage socket event for both User and AI. 
-        // So the user message and AI reply should arrive via socket.
-        // But for consistency with existing optimistic UI:
-        return talkResponse; // Return the whole response for the UI to handle if needed
+        set({ isAiThinking: true }); // Show "thinking" status
+        try {
+          const talkResponse = await chatbotService.talk(aiPayload);
+          // Backend returns { reply: "string", aiAgent: { ... } }
+          // Actually, the real message is usually handled by socket, 
+          // but we return the response to stop the "sending" state
+          return talkResponse; 
+        } finally {
+          set({ isAiThinking: false });
+        }
       } else {
         response = await messageService.sendMessage(selectedUser._id, messageData, (percent) => {
           get().setUploadProgress(tempId, percent);
@@ -320,6 +323,79 @@ const useChatStore = create((set, get) => ({
       console.error('Error deleting message for everyone:', error);
       throw error;
     }
+  },
+
+  handleAiChunk: (tempId, chunk, senderId, receiverId) => {
+    const { messages, chatCache } = get();
+    const myId = String(useAuthStore.getState().authUser?._id || useAuthStore.getState().authUser?.id || '');
+    
+    // Determine which chat ID to update (the partner's ID)
+    const targetChatId = String(senderId) === myId ? String(receiverId) : String(senderId);
+
+    set((state) => {
+        // 🛡️ Find if this streaming message already exists in the ACTIVE view
+        const msgIndex = state.messages.findIndex(m => m.tempId === tempId || m._id === tempId);
+        
+        let updatedMessages = [...state.messages];
+        if (msgIndex !== -1) {
+            updatedMessages[msgIndex] = {
+                ...updatedMessages[msgIndex],
+                text: (updatedMessages[msgIndex].text || "") + chunk,
+                isStreaming: true
+            };
+        } else {
+            // Add new streaming message placeholder
+            updatedMessages.push({
+                _id: tempId,
+                tempId,
+                senderId,
+                receiverId,
+                text: chunk,
+                createdAt: new Date().toISOString(),
+                isStreaming: true
+            });
+        }
+
+        // 🛡️ Update the cache as well for consistency
+        const currentCache = state.chatCache[targetChatId] || [];
+        const cacheIndex = currentCache.findIndex(m => m.tempId === tempId || m._id === tempId);
+        let updatedCacheArr = [...currentCache];
+
+        if (cacheIndex !== -1) {
+            updatedCacheArr[cacheIndex] = {
+                ...updatedCacheArr[cacheIndex],
+                text: (updatedCacheArr[cacheIndex].text || "") + chunk,
+                isStreaming: true
+            };
+        } else {
+            updatedCacheArr.push({
+                _id: tempId,
+                tempId,
+                senderId,
+                receiverId,
+                text: chunk,
+                createdAt: new Date().toISOString(),
+                isStreaming: true
+            });
+        }
+
+        const newChatCache = { ...state.chatCache, [targetChatId]: updatedCacheArr };
+        
+        // 🛡️ Sync with sidebar user list
+        const updatedUsers = state.users.map(u => {
+          if (String(u._id) === targetChatId) {
+            const currentText = (msgIndex !== -1 ? updatedMessages[msgIndex].text : chunk);
+            return { ...u, lastMessage: currentText, lastMessageTime: new Date().toISOString() };
+          }
+          return u;
+        }).sort((a, b) => new Date(b.lastMessageTime || 0) - new Date(a.lastMessageTime || 0));
+
+        return { 
+            messages: updatedMessages,
+            chatCache: newChatCache,
+            users: updatedUsers
+        };
+    });
   },
 
   subscribeToMessages: () => {},
