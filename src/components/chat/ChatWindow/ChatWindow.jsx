@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { User, Send, Plus, Loader2, X, Check, CheckCheck, Smile, Mic, ArrowLeft, ArrowUp, Trash2, MoreVertical } from 'lucide-react';
+import { User, Send, Plus, Loader2, X, Check, Copy, CheckCheck, Smile, Mic, ArrowLeft, ArrowUp, Trash2, MoreVertical } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import useAuthStore from '../../../store/useAuthStore';
 import useChatStore from '../../../store/useChatStore';
@@ -81,7 +81,7 @@ const ChatWindow = () => {
   const [optimisticMessages, setOptimisticMessages] = useState([]);
   const [loadedImages, setLoadedImages] = useState({}); // 🛡️ Track which images have fully downloaded
 
-  // 🤖 Pulse AI Summary State
+  // 🤖 chatly AI Summary State
   const [isAnimatingSummary, setIsAnimatingSummary] = useState(false);
   const [summaryResult, setSummaryResult] = useState(null);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
@@ -90,6 +90,29 @@ const ChatWindow = () => {
   const [messageToDelete, setMessageToDelete] = useState(null);
   const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
   const [isClearChatModalOpen, setIsClearChatModalOpen] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
+
+  const handleCopyMessage = async (text) => {
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch (err) {
+      console.error('Copy failed:', err);
+    }
+  };
+
+  const handleCopySummary = async () => {
+    if (!summaryResult) return;
+    try {
+      await navigator.clipboard.writeText(summaryResult);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch (err) {
+      console.error('Copy failed:', err);
+    }
+  };
 
   useEffect(() => {
     if (selectedUser?._id) {
@@ -325,7 +348,7 @@ const ChatWindow = () => {
         )}
       </AnimatePresence>
 
-      {/* 🔮 Pulse AI Summary Mini Window */}
+      {/* 🔮 chatly AI Summary Mini Window */}
       <AnimatePresence>
         {isSummaryOpen && summaryResult && (
           <motion.div 
@@ -340,9 +363,22 @@ const ChatWindow = () => {
                 <SummarizeIcon />
                 Chat Summary
               </div>
-              <button onClick={() => setIsSummaryOpen(false)} className={styles.summaryMiniClose}>
-                <X size={16} />
-              </button>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <button 
+                  onClick={handleCopySummary} 
+                  className={styles.summaryMiniAction}
+                  title="Copy Summary"
+                >
+                  {isCopied ? <Check size={14} color="#00d26a" /> : <Copy size={14} />}
+                </button>
+                <button 
+                  onClick={() => setIsSummaryOpen(false)} 
+                  className={styles.summaryMiniClose}
+                  title="Close"
+                >
+                  <X size={16} />
+                </button>
+              </div>
             </div>
             <div className={styles.summaryMiniBody}>
               {formatRichText(summaryResult, true)}
@@ -503,7 +539,7 @@ const ChatWindow = () => {
              <div className={styles.skeletonContainer}>
                {[1, 2, 3].map((i) => (
                  <div key={i} className={`${styles.skeletonBubble} ${i % 2 === 0 ? styles.skeletonLeft : styles.skeletonRight}`}>
-                    <div className={styles.skeletonPulse} />
+                    <div className={styles.skeletonchatly} />
                  </div>
                ))}
              </div>
@@ -756,61 +792,52 @@ const ChatWindow = () => {
               }}
             >
                <h3 style={{ margin: 0, color: '#ffffff', textAlign: 'center', fontSize: window.innerWidth < 768 ? '18px' : '14px', fontWeight: '600' }}>
-                 Delete message?
+                 Message Options
                </h3>
                
-               {messageToDelete.isSentByMe ? (
-                 <div style={{ display: 'flex', gap: '10px', width: '100%', justifyContent: 'center' }}>
-                    <button 
-                       onClick={() => { deleteForEveryone(messageToDelete._id); setMessageToDelete(null); }}
-                       style={{ flex: 1, padding: window.innerWidth < 768 ? '12px 6px' : '12px 4px', background: '#00d26a', borderRadius: '40px', border: 'none', color: '#ffffff', fontSize: window.innerWidth < 768 ? '15px' : '13px', fontWeight: '700', cursor: 'pointer', transition: 'transform 0.1s' }}
-                       onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.97)'}
-                       onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                       onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                    >
-                      Everyone
-                    </button>
-                    <button 
-                       onClick={() => { deleteForMe(messageToDelete._id); setMessageToDelete(null); }}
-                       style={{ flex: 1, padding: window.innerWidth < 768 ? '12px 6px' : '12px 4px', background: 'rgba(255,255,255,0.12)', borderRadius: '40px', border: 'none', color: '#ffffff', fontSize: window.innerWidth < 768 ? '15px' : '13px', fontWeight: '600', cursor: 'pointer', transition: 'transform 0.1s' }}
-                       onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.97)'}
-                       onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                       onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                    >
-                      For Me
-                    </button>
-                    <button 
-                       onClick={() => setMessageToDelete(null)}
-                       style={{ flex: 1, padding: window.innerWidth < 768 ? '12px 6px' : '12px 4px', background: 'rgba(255,255,255,0.08)', borderRadius: '40px', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: window.innerWidth < 768 ? '15px' : '13px', fontWeight: '600', cursor: 'pointer', transition: 'transform 0.1s' }}
-                       onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.97)'}
-                       onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                       onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                    >
-                      Cancel
-                    </button>
+               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
+                 {/* 🏷️ Copy Action (Minimal Icon Style) */}
+                 {messageToDelete.text && (
+                   <button 
+                     onClick={() => { handleCopyMessage(messageToDelete.text); setMessageToDelete(null); }}
+                     style={{ width: '100%', padding: '12px', background: 'rgba(255,255,255,0.12)', borderRadius: '40px', border: 'none', color: '#60A5FA', fontSize: '14px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                   >
+                     <Copy size={16} /> Copy Text
+                   </button>
+                 )}
+
+                 <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
+                   {messageToDelete.isSentByMe ? (
+                     <>
+                        <button 
+                           onClick={() => { deleteForEveryone(messageToDelete._id); setMessageToDelete(null); }}
+                           style={{ flex: 1, padding: '12px 6px', background: '#00d26a', borderRadius: '40px', border: 'none', color: '#ffffff', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}
+                        >
+                          Everyone
+                        </button>
+                        <button 
+                           onClick={() => { deleteForMe(messageToDelete._id); setMessageToDelete(null); }}
+                           style={{ flex: 1, padding: '12px 6px', background: 'rgba(255,255,255,0.08)', borderRadius: '40px', border: 'none', color: '#ffffff', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}
+                        >
+                          For Me
+                        </button>
+                     </>
+                   ) : (
+                      <button 
+                         onClick={() => { deleteForMe(messageToDelete._id); setMessageToDelete(null); }}
+                         style={{ flex: 1, padding: '12px', background: 'rgba(255,255,255,0.08)', borderRadius: '40px', border: 'none', color: '#ffffff', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}
+                      >
+                        Delete for Me
+                      </button>
+                   )}
+                   <button 
+                      onClick={() => setMessageToDelete(null)}
+                      style={{ flex: 1, padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '40px', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}
+                   >
+                     Cancel
+                   </button>
                  </div>
-               ) : (
-                 <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
-                    <button 
-                       onClick={() => setMessageToDelete(null)}
-                       style={{ flex: 1, padding: window.innerWidth < 768 ? '12px' : '13px', background: 'rgba(255,255,255,0.08)', borderRadius: '40px', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: window.innerWidth < 768 ? '15px' : '14px', fontWeight: '600', cursor: 'pointer', transition: 'transform 0.1s' }}
-                       onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.97)'}
-                       onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                       onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                    >
-                      Cancel
-                    </button>
-                    <button 
-                       onClick={() => { deleteForMe(messageToDelete._id); setMessageToDelete(null); }}
-                       style={{ flex: 1, padding: window.innerWidth < 768 ? '12px' : '13px', background: '#00d26a', borderRadius: '40px', border: 'none', color: '#ffffff', fontSize: window.innerWidth < 768 ? '15px' : '14px', fontWeight: '700', cursor: 'pointer', transition: 'transform 0.1s' }}
-                       onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.97)'}
-                       onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                       onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                    >
-                      Delete
-                    </button>
-                 </div>
-               )}
+               </div>
              </motion.div>
           </motion.div>
         )}

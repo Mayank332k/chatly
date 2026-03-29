@@ -136,10 +136,14 @@ const useAuthStore = create((set, get) => ({
         // Update active messages if this chat is open
         let updatedMessages = messages;
         if (selectedUser && String(selectedUser._id) === targetChatId) {
-          // Prevent duplicates (e.g. from local optimistic insert)
-          const exists = messages.some(m => m._id === newMessage._id || (m._id.startsWith('temp-') && m.text === newMessage.text));
+          // Prevent duplicates (e.g. from local optimistic insert or streaming)
+          const exists = messages.some(m => 
+            m._id === newMessage._id || 
+            (m.tempId && m.tempId === newMessage.tempId) ||
+            (m._id.startsWith('temp-') && m.text === newMessage.text)
+          );
           if (exists) {
-             updatedMessages = messages.map(m => (m._id === newMessage._id || m._id.startsWith('temp-')) ? newMessage : m);
+             updatedMessages = messages.map(m => (m._id === newMessage._id || m.tempId === newMessage.tempId || m._id.startsWith('temp-')) ? newMessage : m);
           } else {
              updatedMessages = [...messages, newMessage];
           }
@@ -248,6 +252,38 @@ const useAuthStore = create((set, get) => ({
       chatStoreRef.setState({
         typingUsers: typingUsers.filter(id => id !== senderId)
       });
+    });
+
+    // 🤖 ChatyAi Streaming Listeners
+    newSocket.on('chatyAiStreamStart', ({ senderId }) => {
+      if (!chatStoreRef) return;
+      chatStoreRef.setState({ isAiThinking: true });
+    });
+
+    newSocket.on('chatyAiChunk', ({ content, senderId }) => {
+      if (!chatStoreRef) return;
+      chatStoreRef.getState().handleAiChunk('ai-streaming-active', content, senderId, get().authUser?._id);
+    });
+
+    newSocket.on('chatyAiStreamEnd', (finalMessage) => {
+      if (!chatStoreRef) return;
+      chatStoreRef.setState({ isAiThinking: false });
+      
+      chatStoreRef.setState((state) => {
+        const { messages, chatCache } = state;
+        const tempId = 'ai-streaming-active';
+        const targetChatId = String(finalMessage.senderId);
+
+        const updatedMessages = messages.map(m => (m.tempId === tempId || m._id === tempId) ? finalMessage : m);
+        const currentCache = chatCache[targetChatId] || [];
+        const updatedCacheArr = currentCache.map(m => (m.tempId === tempId || m._id === tempId) ? finalMessage : m);
+
+        return { 
+          messages: updatedMessages,
+          chatCache: { ...chatCache, [targetChatId]: updatedCacheArr }
+        };
+      });
+      chatStoreRef.getState()._persistCache();
     });
 
     newSocket.on('disconnect', (reason) => {

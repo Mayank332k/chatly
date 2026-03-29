@@ -46,7 +46,7 @@ const MiniSidebar = ({ onExploreClick, className }) => {
       useChatStore.getState().setSelectedUser({
          _id: 'ai_assistant',
          username: 'ai_assistant',
-         fullName: 'Pulse AI Assistance',
+         fullName: 'Chatly AI Assistance',
          profilePic: null
       });
     }
@@ -73,7 +73,7 @@ const MiniSidebar = ({ onExploreClick, className }) => {
 
       <div 
         className={`${styles.navIcon} ${isAiSelected ? styles.active : ''}`} 
-        data-tooltip="Pulse AI Assistance" 
+        data-tooltip="Chatly AI Assistance" 
         onClick={handleAiClick}
       >
          <Sparkles size={24} strokeWidth={2} />

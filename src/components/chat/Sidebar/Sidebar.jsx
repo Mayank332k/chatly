@@ -107,7 +107,7 @@ const Sidebar = ({ onSelectUser }) => {
                 <div className={styles.metaBottom}>
                   <span className={styles.lastMessage}>
                     { (typingUsers.includes(String(user._id)) || (user.username === 'ai_assistant' && isAiThinking)) ? (
-                       <span style={{ color: 'var(--accent-primary)', fontWeight: '600', animation: 'pulse 1.5s infinite' }}>
+                       <span style={{ color: 'var(--accent-primary)', fontWeight: '600', animation: 'Chatly 1.5s infinite' }}>
                          {user.username === 'ai_assistant' ? 'Thinking... 🪄' : 'Typing...'}
                        </span>
                     ) : (

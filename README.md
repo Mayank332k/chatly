@@ -1,6 +1,6 @@
 # 💬 CHATLY — Premium Real-time Experience
 
-**Pulse Chat** is a high-performance, real-time messaging application designed with a "Quiet Luxury" aesthetic. Built on modern web technologies, it offers a seamless, low-latency communication experience with advanced features like read receipts, typing indicators, and background AI integration.
+**Chatly Chat** is a high-performance, real-time messaging application designed with a "Quiet Luxury" aesthetic. Built on modern web technologies, it offers a seamless, low-latency communication experience with advanced features like read receipts, typing indicators, and background AI integration.
 
 🚀 **Live Demo:** [https://chat-app-frontend-dqrk.vercel.app/](https://chat-app-frontend-dqrk.vercel.app/)
 
