@@ -431,10 +431,10 @@ const ChatWindow = () => {
       <AnimatePresence>
         {isSummaryOpen && summaryResult && (
           <motion.div 
-            initial={{ opacity: 0, scale: 0.9, filter: 'blur(10px)' }}
-            animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
-            exit={{ opacity: 0, scale: 0.9, filter: 'blur(10px)' }}
-            transition={{ type: 'spring', damping: 20, stiffness: 200 }}
+            initial={{ opacity: 0, y: -10, filter: 'blur(12px)' }}
+            animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+            exit={{ opacity: 0, y: -10, filter: 'blur(12px)' }}
+            transition={{ type: 'spring', damping: 22, stiffness: 180 }}
             className={styles.summaryMiniWindow}
           >
             <div className={styles.summaryMiniHeader}>
@@ -460,7 +460,64 @@ const ChatWindow = () => {
               </div>
             </div>
             <div className={styles.summaryMiniBody}>
-              {formatRichText(summaryResult, true)}
+              {(() => {
+                // 🧠 Parse summary into structured blocks
+                const lines = summaryResult.split('\n').filter(l => l.trim());
+                const blocks = [];
+                let currentParagraph = [];
+
+                const flushParagraph = () => {
+                  if (currentParagraph.length > 0) {
+                    blocks.push({ type: 'paragraph', text: currentParagraph.join(' ') });
+                    currentParagraph = [];
+                  }
+                };
+
+                lines.forEach(line => {
+                  const trimmed = line.trim();
+                  // Detect bullet points
+                  if (/^[-•*]\s/.test(trimmed) || /^\d+[\.\)]\s/.test(trimmed)) {
+                    flushParagraph();
+                    blocks.push({ type: 'bullet', text: trimmed.replace(/^[-•*\d\.\)]+\s*/, '') });
+                  }
+                  // Detect bold headings like **Topic:**
+                  else if (/^\*\*[^*]+\*\*:?\s*$/.test(trimmed)) {
+                    flushParagraph();
+                    blocks.push({ type: 'heading', text: trimmed.replace(/\*\*/g, '').replace(/:$/, '') });
+                  }
+                  // Regular text
+                  else {
+                    currentParagraph.push(trimmed);
+                  }
+                });
+                flushParagraph();
+
+                return blocks.map((block, idx) => (
+                  <motion.div
+                    key={idx}
+                    initial={{ opacity: 0, y: 14, filter: 'blur(6px)' }}
+                    animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                    transition={{ 
+                      delay: 0.08 + idx * 0.07, 
+                      duration: 0.45, 
+                      ease: [0.22, 1, 0.36, 1]
+                    }}
+                    className={
+                      block.type === 'heading' ? styles.summaryHeading :
+                      block.type === 'bullet' ? styles.summaryBullet :
+                      styles.summaryParagraph
+                    }
+                  >
+                    {block.type === 'bullet' && (
+                      <span className={styles.summaryBulletDot} />
+                    )}
+                    <span>{formatRichText(
+                      block.type === 'heading' ? `**${block.text}**` : block.text, 
+                      true
+                    )}</span>
+                  </motion.div>
+                ));
+              })()}
             </div>
           </motion.div>
         )}

@@ -12,7 +12,18 @@ const loadCacheFromStorage = () => {
     const raw = localStorage.getItem(CACHE_KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw);
-    return parsed.data || {};
+    const data = parsed.data || {};
+    // 🛡️ Deduplicate any corrupted cache entries on load
+    const cleaned = {};
+    for (const [userId, msgs] of Object.entries(data)) {
+      const seen = new Set();
+      cleaned[userId] = msgs.filter(m => {
+        if (!m._id || seen.has(m._id)) return false;
+        seen.add(m._id);
+        return true;
+      });
+    }
+    return cleaned;
   } catch { return {}; }
 };
 
@@ -157,11 +168,7 @@ const useChatStore = create((set, get) => ({
         const aiPayload = (messageData instanceof FormData) ? { text: messageData.get('text') } : messageData;
         set({ isAiThinking: true }); // Show "thinking" status
         try {
-          const talkResponse = await chatbotService.talk(aiPayload);
-          // Backend returns { reply: "string", aiAgent: { ... } }
-          // Actually, the real message is usually handled by socket, 
-          // but we return the response to stop the "sending" state
-          return talkResponse; 
+          response = await chatbotService.talk(aiPayload);
         } finally {
           set({ isAiThinking: false });
         }
@@ -171,23 +178,35 @@ const useChatStore = create((set, get) => ({
         });
       }
       
-      const updatedMessages = get().messages.map(m => m._id === tempId ? { ...response, status: 'sent' } : m);
+      // 🛡️ Robust Deduplication: Check if Message already arrived via Socket
+      const currentMessages = get().messages;
+      const alreadyInList = currentMessages.some(m => m._id === response?._id);
+
+      let updatedMessages;
+      if (alreadyInList) {
+        // Just update status of existing message
+        updatedMessages = currentMessages.map(m => m._id === response?._id ? { ...m, status: 'sent' } : m);
+        // And remove the temp one if it's still hanging around
+        updatedMessages = updatedMessages.filter(m => m._id !== tempId);
+      } else {
+        // Standard replacement of optimistic placeholder
+        updatedMessages = currentMessages.map(m => m._id === tempId ? { ...response, status: 'sent' } : m);
+      }
+
       const { [tempId]: _, ...remainingProgress } = get().uploadProgress;
-      
       const updatedCache = { ...get().chatCache, [selectedUser._id]: updatedMessages };
+
       set({
         messages: updatedMessages,
         chatCache: updatedCache,
         uploadProgress: remainingProgress,
-        users: get().users.map(u => u._id === selectedUser._id 
+        users: get().users.map(u => 
+          String(u._id) === String(selectedUser._id) 
           ? { ...u, lastMessage: response.text, lastMessageTime: response.createdAt } 
           : u
-        ).sort((a, b) => {
-          const dateA = new Date(a.lastMessageTime || 0);
-          const dateB = new Date(b.lastMessageTime || 0);
-          return dateB - dateA;
-        })
+        ).sort((a, b) => new Date(b.lastMessageTime || 0) - new Date(a.lastMessageTime || 0))
       });
+
       saveCacheToStorage(updatedCache);
       return response;
     } catch (error) {

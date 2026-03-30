@@ -121,46 +121,79 @@ const useAuthStore = create((set, get) => ({
       console.log('📨 New message received via socket:', newMessage._id);
       if (!chatStoreRef) return;
       
-      const { users, chatCache, selectedUser } = chatStoreRef.getState();
       const authUser = get().authUser;
       const myId = String(authUser?._id || authUser?.id || '');
       const sId = String(newMessage.senderId);
       const rId = String(newMessage.receiverId);
 
+      // 🛡️ SKIP messages I sent myself — those are handled by the HTTP response
+      // in sendMessage(). Processing them here too causes duplicates.
+      const iSentThis = sId === myId;
+      
       // Determine which chat ID to update in cache
-      const targetChatId = sId === myId ? rId : sId;
+      const targetChatId = iSentThis ? rId : sId;
+
+      const { selectedUser } = chatStoreRef.getState();
 
       chatStoreRef.setState((state) => {
         const { messages, chatCache } = state;
         
-        // Update active messages if this chat is open
         let updatedMessages = messages;
         if (selectedUser && String(selectedUser._id) === targetChatId) {
-          // Prevent duplicates (e.g. from local optimistic insert or streaming)
-          const exists = messages.some(m => 
-            m._id === newMessage._id || 
-            (m.tempId && m.tempId === newMessage.tempId) ||
-            (m._id.startsWith('temp-') && m.text === newMessage.text)
-          );
-          if (exists) {
-             updatedMessages = messages.map(m => (m._id === newMessage._id || m.tempId === newMessage.tempId || m._id.startsWith('temp-')) ? newMessage : m);
+          // Check if this exact message _id already exists
+          const existsByRealId = messages.some(m => m._id === newMessage._id);
+          
+          if (existsByRealId) {
+            // Already here (e.g. from HTTP response) — just update it in place
+            updatedMessages = messages.map(m => m._id === newMessage._id ? { ...newMessage, status: 'sent' } : m);
+          } else if (iSentThis) {
+            // I sent this — find & replace my temp placeholder by matching text + receiverId
+            const tempIdx = messages.findIndex(m => 
+              m._id.startsWith?.('temp-') && 
+              String(m.receiverId) === rId && 
+              m.text === newMessage.text
+            );
+            if (tempIdx !== -1) {
+              updatedMessages = [...messages];
+              updatedMessages[tempIdx] = { ...newMessage, status: 'sent' };
+            }
+            // If no temp found, skip — HTTP response will handle it
           } else {
-             updatedMessages = [...messages, newMessage];
+            // Someone else sent this to me — just append
+            updatedMessages = [...messages, newMessage];
           }
         }
 
-        // Update cache
+        // Update cache with dedup
         const currentCache = chatCache[targetChatId] || [];
         const existsInCache = currentCache.some(m => m._id === newMessage._id);
-        const updatedCache = {
-          ...chatCache,
-          [targetChatId]: existsInCache ? currentCache : [...currentCache, newMessage]
-        };
+        let updatedCacheArr;
+        if (existsInCache) {
+          updatedCacheArr = currentCache.map(m => m._id === newMessage._id ? newMessage : m);
+        } else if (iSentThis) {
+          // Replace temp in cache
+          const tempCacheIdx = currentCache.findIndex(m => 
+            m._id.startsWith?.('temp-') && 
+            String(m.receiverId) === rId && 
+            m.text === newMessage.text
+          );
+          if (tempCacheIdx !== -1) {
+            updatedCacheArr = [...currentCache];
+            updatedCacheArr[tempCacheIdx] = newMessage;
+          } else {
+            updatedCacheArr = currentCache; // Don't add — HTTP will handle
+          }
+        } else {
+          updatedCacheArr = [...currentCache, newMessage];
+        }
+        
+        const updatedCache = { ...chatCache, [targetChatId]: updatedCacheArr };
 
         return { messages: updatedMessages, chatCache: updatedCache };
       });
       
       // Update sidebar sort
+      const { users } = chatStoreRef.getState();
       const updatedUsers = users.map(u => {
         if (String(u._id) === sId || String(u._id) === rId) {
           return { ...u, lastMessage: newMessage.text, lastMessageTime: newMessage.createdAt };

@@ -769,13 +769,10 @@
 }
 
 .summaryMiniBody {
-  font-size: 0.88rem;
-  line-height: 1.55;
-  color: rgba(0, 0, 0, 0.8);
-  font-weight: 500;
-  letter-spacing: -0.15px;
-  white-space: pre-wrap;
-  max-height: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  max-height: 340px;
   overflow-y: auto;
   padding-right: 4px;
 }
@@ -784,8 +781,57 @@
   width: 4px;
 }
 .summaryMiniBody::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.15);
+  background: rgba(0, 0, 0, 0.12);
   border-radius: 4px;
+}
+
+/* 🏷️ Section Heading blocks */
+.summaryHeading {
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: rgba(0, 0, 0, 0.45);
+  padding: 14px 0 6px 0;
+  margin-top: 4px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+.summaryHeading:first-child {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 0;
+}
+
+/* 🔹 Bullet point blocks */
+.summaryBullet {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.87rem;
+  line-height: 1.6;
+  color: rgba(0, 0, 0, 0.82);
+  font-weight: 500;
+  letter-spacing: -0.1px;
+  padding: 6px 0 6px 2px;
+}
+
+.summaryBulletDot {
+  width: 5px;
+  height: 5px;
+  min-width: 5px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.25);
+  margin-top: 8px;
+}
+
+/* 📝 Paragraph blocks */
+.summaryParagraph {
+  font-size: 0.87rem;
+  line-height: 1.65;
+  color: rgba(0, 0, 0, 0.75);
+  font-weight: 500;
+  letter-spacing: -0.15px;
+  padding: 5px 0;
 }
 
 /* 🌊 Premium Gradient Wave Animation for Text */
