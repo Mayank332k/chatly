@@ -21,18 +21,35 @@ const messageService = {
     }
   },
 
-  
   sendMessage: async (userId, data, onProgress) => {
     try {
-      // Direct pass without manual headers for proper Boundary detection
+      let intervalId;
+      if (onProgress && data instanceof FormData) {
+        let fakeProgress = 0;
+        // Start a smooth, realistic progress animation while waiting for the Node -> Cloudinary backend hop
+        intervalId = setInterval(() => {
+          fakeProgress += Math.random() * 15; // Randomly increment by 0-15%
+          if (fakeProgress >= 90) {
+            fakeProgress = 90;
+            clearInterval(intervalId);
+          }
+          onProgress(Math.floor(fakeProgress));
+        }, 300);
+      }
+
       const response = await api.post(`/messages/send/${userId}`, data, {
         onUploadProgress: (progressEvent) => {
-          if (onProgress && progressEvent.total) {
-            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-            onProgress(percentCompleted);
+          // If it isn't FormData (no image), just use the raw network progress
+          if (onProgress && !(data instanceof FormData) && progressEvent.total) {
+             const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+             onProgress(percentCompleted);
           }
         }
       });
+      
+      if (intervalId) clearInterval(intervalId);
+      if (onProgress) onProgress(100);
+
       return response.data;
     } catch (error) {
       throw error.response?.data?.message || 'Error sending message';

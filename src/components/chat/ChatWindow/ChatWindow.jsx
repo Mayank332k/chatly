@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { User, Send, Plus, Loader2, X, Check, Copy, CheckCheck, Smile, Mic, ArrowLeft, ArrowUp, Trash2, MoreVertical } from 'lucide-react';
+import { User, Send, Plus, Loader2, X, Check, Copy, CheckCheck, Smile, Mic, ArrowLeft, ArrowUp, Trash2, MoreVertical, Download, MoreHorizontal } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import useAuthStore from '../../../store/useAuthStore';
 import useChatStore from '../../../store/useChatStore';
@@ -22,9 +22,10 @@ const SummaryLoader = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" className={styles.premiumLoaderSVG}>
     <defs>
       <linearGradient id="spinnerGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%" stopColor="#ff6b6b" />
-        <stop offset="50%" stopColor="#1dd1a1" />
-        <stop offset="100%" stopColor="#48dbfb" />
+        <stop offset="100%" stopColor="rgb(124, 143, 177)" />
+        <stop offset="0%" stopColor="rgb(220, 198, 133)" />
+        <stop offset="50%" stopColor="rgb(255, 140, 80)" />
+        <stop offset="100%" stopColor="rgb(219, 115, 150)" />
       </linearGradient>
     </defs>
     <path 
@@ -111,6 +112,58 @@ const ChatWindow = () => {
       setTimeout(() => setIsCopied(false), 2000);
     } catch (err) {
       console.error('Copy failed:', err);
+    }
+  };
+
+  const handleDownloadImage = async () => {
+    if (!selectedImageModal) return;
+    try {
+      const response = await fetch(selectedImageModal);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = `chatly_image_${Date.now()}.png`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+       console.error("Download failed:", error);
+    }
+  };
+
+  const handleCopyImage = async () => {
+    if (!selectedImageModal) return;
+    try {
+       const response = await fetch(selectedImageModal);
+       const blob = await response.blob();
+       await navigator.clipboard.write([
+          new window.ClipboardItem({ [blob.type]: blob })
+       ]);
+       setIsCopied(true);
+       setTimeout(() => setIsCopied(false), 2000);
+    } catch (error) {
+       console.error("Copy image failed:", error);
+       try {
+           const canvas = document.createElement("canvas");
+           const ctx = canvas.getContext("2d");
+           const img = new Image();
+           img.crossOrigin = "anonymous";
+           img.onload = () => {
+               canvas.width = img.width;
+               canvas.height = img.height;
+               ctx.drawImage(img, 0, 0);
+               canvas.toBlob(async (b) => {
+                   await navigator.clipboard.write([new window.ClipboardItem({ [b.type]: b })]);
+                   setIsCopied(true);
+                   setTimeout(() => setIsCopied(false), 2000);
+               });
+           };
+           img.src = selectedImageModal;
+       } catch (err) {
+           console.error("Fallback copy failed", err);
+       }
     }
   };
 
@@ -344,6 +397,32 @@ const ChatWindow = () => {
                 <X size={24} />
               </button>
             </motion.div>
+
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1, type: "spring", stiffness: 200 }}
+              className={styles.lightboxActions}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button 
+                className={styles.lightboxActionBtn} 
+                onClick={handleDownloadImage}
+                title="Save Image"
+              >
+                <Download size={20} strokeWidth={2} />
+              </button>
+              
+              <div style={{ width: '1.5px', background: 'rgba(255,255,255,0.15)', margin: '4px 8px' }} />
+              
+              <button 
+                className={styles.lightboxActionBtn} 
+                onClick={handleCopyImage}
+                title="Copy Image"
+              >
+                {isCopied ? <Check size={20} strokeWidth={2.5} color="#0A84FF" /> : <Copy size={20} strokeWidth={2} />}
+              </button>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -571,26 +650,35 @@ const ChatWindow = () => {
                    transition={{ type: 'tween', ease: [0.16, 1, 0.3, 1], duration: 0.85 }}
                    className={`${styles.msgItem} ${isSentByMe ? styles.msgSent : styles.msgReceived}`}
                  >
-                    <div 
-                      className={`${styles.bubble} ${isSentByMe ? styles.bubbleSent : styles.bubbleReceived} ${msg.image ? styles.bubbleWithImage : ""} ${msg.isDeletedForEveryone ? styles.bubbleDeleted : ""}`}
-                      onClick={() => {
-                        if (msg.status !== 'sending' && !msg.isDeletedForEveryone) {
-                          setMessageToDelete({ ...msg, isSentByMe });
-                        }
-                      }}
-                      onContextMenu={(e) => {
-                        if (msg.status !== 'sending' && !msg.isDeletedForEveryone) {
-                          e.preventDefault();
-                          setMessageToDelete({ ...msg, isSentByMe });
-                        }
-                      }}
-                      style={{ 
-                        cursor: msg.status === 'sending' || msg.isDeletedForEveryone ? 'default' : 'pointer', 
-                        opacity: msg.isDeletedForEveryone ? 0.7 : 1,
-                        userSelect: 'none',
-                        WebkitTouchCallout: 'none'
-                      }}
-                    >
+                    <div className={styles.bubbleWrapper}>
+                      {isSentByMe && (
+                        <button 
+                          className={styles.msgOptionsBtn} 
+                          onClick={() => {
+                            if (msg.status !== 'sending' && !msg.isDeletedForEveryone) {
+                              setMessageToDelete({ ...msg, isSentByMe });
+                            }
+                          }}
+                        >
+                          <MoreHorizontal size={18} />
+                        </button>
+                      )}
+                      
+                      <div 
+                        className={`${styles.bubble} ${isSentByMe ? styles.bubbleSent : styles.bubbleReceived} ${msg.image ? styles.bubbleWithImage : ""} ${msg.isDeletedForEveryone ? styles.bubbleDeleted : ""}`}
+                        onContextMenu={(e) => {
+                          if (msg.status !== 'sending' && !msg.isDeletedForEveryone) {
+                            e.preventDefault();
+                            setMessageToDelete({ ...msg, isSentByMe });
+                          }
+                        }}
+                        style={{ 
+                          cursor: msg.status === 'sending' || msg.isDeletedForEveryone ? 'default' : 'pointer', 
+                          opacity: msg.isDeletedForEveryone ? 0.7 : 1,
+                          userSelect: 'none',
+                          WebkitTouchCallout: 'none'
+                        }}
+                      >
                       {msg.image && (
                         <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 'inherit' }}>
                           {/* 🛡️ Receiver Side Download Spinner */}
@@ -599,7 +687,7 @@ const ChatWindow = () => {
                               <Loader2 className="animate-spin" size={32} color="var(--accent-primary)" />
                             </div>
                           )}
-                          <img 
+                            <img 
                             src={msg.image} 
                             alt="Media" 
                             className={`${styles.chatImage} ${!isImageLoaded && msg.status !== 'sending' ? styles.blurredImage : ''}`} 
@@ -607,6 +695,13 @@ const ChatWindow = () => {
                               if (msg.status !== 'sending' && isImageLoaded) {
                                 e.stopPropagation();
                                 setSelectedImageModal(msg.image);
+                              }
+                            }}
+                            onContextMenu={(e) => {
+                              if (msg.status !== 'sending' && !msg.isDeletedForEveryone) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setMessageToDelete({ ...msg, isSentByMe });
                               }
                             }}
                             onLoad={() => setLoadedImages(prev => ({ ...prev, [msg._id]: true }))}
@@ -635,6 +730,53 @@ const ChatWindow = () => {
                           {formatRichText(msg.text, !isSentByMe && isAiAssistant)}
                         </p>
                       )}
+                    </div>
+
+                    {!isSentByMe && (
+                      <button 
+                        className={styles.msgOptionsBtn} 
+                        onClick={() => {
+                          if (msg.status !== 'sending' && !msg.isDeletedForEveryone) {
+                            setMessageToDelete({ ...msg, isSentByMe });
+                          }
+                        }}
+                      >
+                        <MoreHorizontal size={18} />
+                      </button>
+                    )}
+
+                    {/* 🖥️ Desktop Options Dropdown */}
+                    {messageToDelete && messageToDelete._id === msg._id && window.innerWidth >= 768 && (
+                      <>
+                        <div 
+                          style={{ position: 'fixed', inset: 0, zIndex: 999 }} 
+                          onClick={(e) => { e.stopPropagation(); setMessageToDelete(null); }} 
+                        />
+                        <motion.div 
+                          initial={{ opacity: 0, scale: 0.95, y: -5 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.95, y: -5 }}
+                          className={`${styles.messageDropdownDesktop} ${isSentByMe ? styles.dropdownRight : styles.dropdownLeft}`}
+                        >
+                          {msg.text && (
+                            <button className={styles.desktopMenuAction} onClick={() => { handleCopyMessage(msg.text); setMessageToDelete(null); }}>
+                              {isCopied ? <Check size={16} color="#00d26a" /> : <Copy size={16} />}
+                              <span>{isCopied ? 'Copied' : 'Copy Text'}</span>
+                            </button>
+                          )}
+                          <button className={`${styles.desktopMenuAction} ${styles.danger}`} onClick={() => { deleteForMe(msg._id); setMessageToDelete(null); }}>
+                            <Trash2 size={16} />
+                            <span>Delete for Me</span>
+                          </button>
+                          {isSentByMe && (
+                            <button className={`${styles.desktopMenuAction} ${styles.danger}`} onClick={() => { deleteForEveryone(msg._id); setMessageToDelete(null); }}>
+                              <Trash2 size={16} />
+                              <span>Delete for Everyone</span>
+                            </button>
+                          )}
+                        </motion.div>
+                      </>
+                    )}
                     </div>
 
                     <div className={styles.timestampContainer}>
@@ -762,9 +904,9 @@ const ChatWindow = () => {
         </button>
       </footer>
 
-      {/* Message Deletion Modal */}
+      {/* Message Deletion Modal (Mobile Only) */}
       <AnimatePresence>
-        {messageToDelete && (
+        {messageToDelete && window.innerWidth < 768 && (
           <motion.div 
             initial={{ opacity: 0 }} 
             animate={{ opacity: 1 }} 
@@ -784,14 +926,14 @@ const ChatWindow = () => {
                 backdropFilter: 'blur(30px) saturate(150%)',
                 WebkitBackdropFilter: 'blur(30px) saturate(150%)',
                 width: '100%',
-                maxWidth: window.innerWidth < 768 ? '285px' : '300px',
-                padding: window.innerWidth < 768 ? '22px 18px' : '24px 20px', 
+                maxWidth: '285px',
+                padding: '22px 18px', 
                 borderRadius: '50px',
-                display: 'flex', flexDirection: 'column', gap: window.innerWidth < 768 ? '14px' : '14px',
+                display: 'flex', flexDirection: 'column', gap: '14px',
                 boxShadow: '0 20px 50px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(255,255,255,0.08)'
               }}
             >
-               <h3 style={{ margin: 0, color: '#ffffff', textAlign: 'center', fontSize: window.innerWidth < 768 ? '18px' : '14px', fontWeight: '600' }}>
+               <h3 style={{ margin: 0, color: '#ffffff', textAlign: 'center', fontSize: '18px', fontWeight: '600' }}>
                  Message Options
                </h3>
                

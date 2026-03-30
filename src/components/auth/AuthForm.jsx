@@ -72,19 +72,23 @@ const AuthForm = () => {
           exit={{ opacity: 0, y: -15 }}
           style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '32px' }}
         >
-          <div style={{ textAlign: 'center' }}>
-            <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.8rem', color: 'var(--accent-primary)', marginBottom: '4px' }}>
+          <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+            <h2 className={styles.title}>
               {isLogin ? 'Welcome Back' : 'Create Account'}
             </h2>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+            <p className={styles.subtitle}>
               {isLogin ? 'Enter your credentials to access your account' : 'Start your secure conversation journey'}
             </p>
           </div>
 
           {error && (
-            <div style={{ background: '#FEE2E2', color: '#B91C1C', padding: '12px', borderRadius: 'var(--radius-md)', width: '100%', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <AlertCircle size={16} /> {error}
-            </div>
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className={styles.errorBadge}
+            >
+              <AlertCircle size={18} /> {error}
+            </motion.div>
           )}
 
           {!isLogin && (

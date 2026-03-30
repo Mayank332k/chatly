@@ -294,11 +294,54 @@
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
 }
 
+.bubbleWithImage {
+  padding: 4px;
+}
+
+.uploadOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  border-radius: inherit;
+}
+
+.stretchingSpinner {
+  width: 56px;
+  height: 56px;
+  border: 3.5px solid rgba(255, 255, 255, 0.15);
+  border-top-color: var(--accent-primary, #3b82f6);
+  border-radius: 50%;
+  animation: uploadSpin 0.85s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+}
+
+@keyframes uploadSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.progressText {
+  position: absolute;
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", "SF Pro Text", "Inter", sans-serif;
+  text-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+  letter-spacing: -0.3px;
+  z-index: 11;
+}
+
 .chatImage {
   width: 100%;
   max-width: 400px;
-  border-radius: 6px;
-  object-fit: contain;
+  border-radius: inherit;
+  object-fit: cover;
   display: block;
 }
 
@@ -311,6 +354,99 @@
 
 .msgSent { align-self: flex-end; align-items: flex-end; }
 .msgReceived { align-self: flex-start; align-items: flex-start; }
+
+.bubbleWrapper {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  position: relative;
+}
+
+.msgOptionsBtn {
+  opacity: 0;
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  margin-top: 4px;
+}
+
+.bubbleWrapper:hover .msgOptionsBtn {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.msgOptionsBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  transform: scale(1.1);
+}
+
+@media (hover: none) and (pointer: coarse), (max-width: 768px) {
+  .msgOptionsBtn {
+    display: none !important;
+  }
+}
+
+.messageDropdownDesktop {
+  position: absolute;
+  top: 36px;
+  z-index: 1000;
+  background: rgba(30, 30, 30, 0.85);
+  backdrop-filter: blur(25px) saturate(150%);
+  -webkit-backdrop-filter: blur(25px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 180px;
+  box-shadow: 0 15px 40px rgba(0,0,0,0.6);
+}
+
+.dropdownRight {
+  right: 0;
+}
+
+.dropdownLeft {
+  left: 0;
+}
+
+.desktopMenuAction {
+  width: 100%;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  color: white;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.desktopMenuAction:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.desktopMenuAction.danger {
+  color: #ff5c5c;
+}
+
+.desktopMenuAction.danger:hover {
+  background: rgba(255, 92, 92, 0.15);
+}
 
 .timestampContainer {
   display: flex;
@@ -334,12 +470,96 @@
 .lightboxOverlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.02); /* Near invisible */
+  background: rgba(0, 0, 0, 0.85); /* Deep dark glass */
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 2000;
+  padding: 24px;
 }
+
+.lightboxContent {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 90vw;
+  max-height: 90vh;
+  border-radius: 12px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+  background: transparent;
+}
+
+.fullImage {
+  max-width: 100%;
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: 12px;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.closeLightbox {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: rgba(0, 0, 0, 0.4);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  backdrop-filter: blur(10px);
+  z-index: 10;
+}
+
+.closeLightbox:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: scale(1.1);
+}
+
+.lightboxActions {
+  position: absolute;
+  bottom: max(50px, calc(30px + env(safe-area-inset-bottom)));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  background: rgba(30, 30, 30, 0.65);
+  padding: 8px 14px;
+  border-radius: 40px;
+  backdrop-filter: blur(30px) saturate(150%);
+  -webkit-backdrop-filter: blur(30px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
+  z-index: 2010;
+}
+
+.lightboxActionBtn {
+  background: transparent;
+  color: white;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  padding: 10px;
+  border-radius: 50%;
+}
+
+.lightboxActionBtn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: scale(1.1);
+}
+
 
 .topProgressBar {
   position: absolute;

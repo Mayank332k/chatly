@@ -52,13 +52,12 @@
 
 @media (max-width: 850px) {
   .miniSidebar {
-    /* TRANSFORMATION: Vertical Bar -> Floating Pill 💊 */
     position: fixed;
     bottom: 24px;
     left: 50%;
     transform: translateX(-50%);
-    width: 280px; /* Compact width for 4 items */
-    height: 64px;
+    width: 250px; /* Compact width for 4 items */
+    height: 50px;
     flex-direction: row;
     gap: 0;
     justify-content: space-around;
@@ -130,6 +129,13 @@
   color: white;
 }
 
+@media (max-width: 850px) {
+  .navIcon {
+    width: 38px;
+    height: 38px;
+  }
+}
+
 .statusDot {
   position: absolute;
   top: 10px;
@@ -172,6 +178,8 @@
 @media (max-width: 850px) {
   .pfpContainer {
     border-radius: 50% !important; /* Circle on mobile */
+    width: 38px;
+    height: 38px;
   }
 }
 
