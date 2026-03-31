@@ -15,12 +15,20 @@ const useAuthStore = create((set, get) => ({
   socket: null,
 
   checkAuth: async () => {
+    // ⚡ Optimality: If we already have a user in localStorage, connect immediately
+    // so they appear online right away on refresh.
+    const cachedUser = get().authUser;
+    if (cachedUser) {
+      console.log('🚀 Hydrated user found, connecting socket instantly...');
+      get().connectSocket();
+    }
+
     try {
       const res = await authService.checkAuth();
       console.log('🔍 checkAuth response:', JSON.stringify(res));
       set({ authUser: res });
       localStorage.setItem('chat-user', JSON.stringify(res)); // 🛡️ Persist for instant refresh
-      get().connectSocket(); // Initialize socket on successful auth
+      get().connectSocket(); // Verify/Reconnect on successful response
     } catch (error) {
       console.log('Error in checkAuth:', error);
       set({ authUser: null });
@@ -80,8 +88,8 @@ const useAuthStore = create((set, get) => ({
       return;
     }
     
-    // 🛡️ If socket exists and is connected OR still connecting, do nothing
-    if (socket && (socket.connected || !socket.disconnected)) return;
+    // 🛡️ Only guard if the socket is ACTIVELY connected
+    if (socket?.connected) return;
 
     // Clean up any old fully-disconnected socket
     if (socket) {
@@ -116,6 +124,26 @@ const useAuthStore = create((set, get) => ({
       set({ onlineUsers: userIds });
     });
 
+    // ⚡ Real-time status updates (incremental)
+    newSocket.on('user_online', (userId) => {
+      console.log('✨ User came online:', userId);
+      set((state) => ({
+        onlineUsers: state.onlineUsers.includes(userId) 
+          ? state.onlineUsers 
+          : [...state.onlineUsers, userId]
+      }));
+    });
+
+    newSocket.on('user_offline', (userId) => {
+      console.log('🌙 User went offline:', userId);
+      set((state) => ({
+        onlineUsers: state.onlineUsers.filter(id => String(id) !== String(userId))
+      }));
+    });
+
+    // 🛡️ Request initial online list
+    newSocket.emit('request_online_users');
+
     // 🛡️ ALWAYS-ON sidebar sort and message handling
     newSocket.on('newMessage', (newMessage) => {
       console.log('📨 New message received via socket:', newMessage._id);
@@ -147,9 +175,9 @@ const useAuthStore = create((set, get) => ({
             // Already here (e.g. from HTTP response) — just update it in place
             updatedMessages = messages.map(m => m._id === newMessage._id ? { ...newMessage, status: 'sent' } : m);
           } else if (iSentThis) {
-            // I sent this — find & replace my temp placeholder by matching text + receiverId
+            // I sent this — find & replace my temp/pending placeholder by matching text + receiverId
             const tempIdx = messages.findIndex(m => 
-              m._id.startsWith?.('temp-') && 
+              (m._id.startsWith?.('temp-') || m._id.startsWith?.('sent-')) && 
               String(m.receiverId) === rId && 
               m.text === newMessage.text
             );
@@ -173,7 +201,7 @@ const useAuthStore = create((set, get) => ({
         } else if (iSentThis) {
           // Replace temp in cache
           const tempCacheIdx = currentCache.findIndex(m => 
-            m._id.startsWith?.('temp-') && 
+            (m._id.startsWith?.('temp-') || m._id.startsWith?.('sent-')) && 
             String(m.receiverId) === rId && 
             m.text === newMessage.text
           );
@@ -189,19 +217,30 @@ const useAuthStore = create((set, get) => ({
         
         const updatedCache = { ...chatCache, [targetChatId]: updatedCacheArr };
 
-        return { messages: updatedMessages, chatCache: updatedCache };
+        // 3. Update sidebar sort
+        let userWasFound = false;
+        const updatedUsers = users.map(u => {
+          if (String(u._id) === targetChatId) {
+            userWasFound = true;
+            return { ...u, lastMessage: newMessage.text, lastMessageTime: newMessage.createdAt };
+          }
+          return u;
+        }).sort((a, b) => new Date(b.lastMessageTime || 0) - new Date(a.lastMessageTime || 0));
+
+        // 🚨 CRITICAL FIX: If this message is from a new user (not in our current list),
+        // we MUST refresh the users list/history so they appear in our sidebar!
+        if (!userWasFound) {
+           console.log('🔰 Message from new contact. Syncing users list...');
+           setTimeout(() => chatStoreRef.getState().getUsers(), 500); 
+        }
+
+        return { 
+          messages: updatedMessages, 
+          chatCache: updatedCache,
+          users: updatedUsers 
+        };
       });
       
-      // Update sidebar sort
-      const { users } = chatStoreRef.getState();
-      const updatedUsers = users.map(u => {
-        if (String(u._id) === sId || String(u._id) === rId) {
-          return { ...u, lastMessage: newMessage.text, lastMessageTime: newMessage.createdAt };
-        }
-        return u;
-      }).sort((a, b) => new Date(b.lastMessageTime || 0) - new Date(a.lastMessageTime || 0));
-
-      chatStoreRef.setState({ users: updatedUsers });
       chatStoreRef.getState()._persistCache();
     });
 
@@ -321,11 +360,27 @@ const useAuthStore = create((set, get) => ({
 
     newSocket.on('disconnect', (reason) => {
       console.warn('⚠️ Socket disconnected:', reason);
+      // Auto-reconnect if it's not a manual user disconnect
+      if (reason === "io server disconnect" || reason === "transport close") {
+         setTimeout(() => get().connectSocket(), 3000);
+      }
     });
 
     newSocket.on('connect_error', (error) => {
       console.error('❌ Socket Connection Error:', error.message);
+      // Retry connection every 5s if failed
+      setTimeout(() => get().connectSocket(), 5000);
     });
+
+    // 🛡️ Tab Visibility Re-Sync: If user comes back to the tab, ensure socket is alive
+    const hv = () => {
+      if (document.visibilityState === 'visible') {
+        const s = get().socket;
+        if (!s || !s.connected) get().connectSocket();
+      }
+    };
+    document.addEventListener('visibilitychange', hv);
+    newSocket._hv = hv; // Store for cleanup
   },
 
   updateProfile: async (formData) => {
@@ -353,7 +408,8 @@ const useAuthStore = create((set, get) => ({
   disconnectSocket: () => {
     const { socket } = get();
     if (socket) {
-      socket.removeAllListeners(); // 🛡️ Kill ALL listeners to prevent ghost refs
+      if (socket._hv) document.removeEventListener('visibilitychange', socket._hv);
+      socket.removeAllListeners();
       socket.disconnect();
       set({ socket: null, onlineUsers: [] });
     }

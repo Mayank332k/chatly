@@ -122,7 +122,17 @@ const useChatStore = create((set, get) => ({
       const finalData = [...serverMessages, ...localPending];
 
       const newCache = { ...get().chatCache, [userId]: finalData };
-      set({ messages: finalData, chatCache: newCache });
+      
+      // 🛡️ SYNC SIDEBAR: Update lastMessage info in the users list
+      const lastOne = finalData.length > 0 ? finalData[finalData.length - 1] : null;
+      const updatedUsers = get().users.map(u => {
+        if (String(u._id) === String(userId) && lastOne) {
+          return { ...u, lastMessage: lastOne.text, lastMessageTime: lastOne.createdAt };
+        }
+        return u;
+      }).sort((a, b) => new Date(b.lastMessageTime || 0) - new Date(a.lastMessageTime || 0));
+
+      set({ messages: finalData, chatCache: newCache, users: updatedUsers });
       
       // 💾 Persist to localStorage
       saveCacheToStorage(newCache);
@@ -172,11 +182,53 @@ const useChatStore = create((set, get) => ({
         } finally {
           set({ isAiThinking: false });
         }
-      } else {
-        response = await messageService.sendMessage(selectedUser._id, messageData, (percent) => {
-          get().setUploadProgress(tempId, percent);
+
+
+        const currentMessages = get().messages;
+        
+        // Step 1: Confirm user's optimistic message as "sent" (keep temp ID for socket dedup)
+        // If socket already replaced temp with real msg, this is a harmless no-op.
+        const userMsgConfirmed = currentMessages.map(m => 
+          m._id === tempId ? { ...m, status: 'sent' } : m
+        );
+
+        // Step 2: Append AI reply ONLY if socket hasn't already delivered it
+        // Check by _id first, then fallback to text+sender match to catch all cases
+        const aiReplyId = response?._id;
+        const aiReplyText = response?.text;
+        const aiSenderId = String(response?.senderId || '');
+        
+        const aiAlreadyInList = userMsgConfirmed.some(m => 
+          m._id === aiReplyId || 
+          (aiReplyText && String(m.senderId) === aiSenderId && m.text === aiReplyText)
+        );
+        
+        const updatedMessages = aiAlreadyInList 
+          ? userMsgConfirmed 
+          : [...userMsgConfirmed, { ...response, status: 'sent' }];
+
+        const { [tempId]: _, ...remainingProgress } = get().uploadProgress;
+        const updatedCache = { ...get().chatCache, [selectedUser._id]: updatedMessages };
+
+        set({
+          messages: updatedMessages,
+          chatCache: updatedCache,
+          uploadProgress: remainingProgress,
+          users: get().users.map(u => 
+            String(u._id) === String(selectedUser._id) 
+            ? { ...u, lastMessage: response.text, lastMessageTime: response.createdAt } 
+            : u
+          ).sort((a, b) => new Date(b.lastMessageTime || 0) - new Date(a.lastMessageTime || 0))
         });
+
+        saveCacheToStorage(updatedCache);
+        return response;
       }
+
+      // 👤 Normal user flow
+      response = await messageService.sendMessage(selectedUser._id, messageData, (percent) => {
+        get().setUploadProgress(tempId, percent);
+      });
       
       // 🛡️ Robust Deduplication: Check if Message already arrived via Socket
       const currentMessages = get().messages;
@@ -285,7 +337,16 @@ const useChatStore = create((set, get) => ({
       const { chatCache } = get();
       const newCache = { ...chatCache };
       delete newCache[userId];
-      set({ messages: [], chatCache: newCache });
+      
+      // 🛡️ SYNC SIDEBAR: Move user back to Explore (reset history info)
+      const updatedUsers = get().users.map(u => {
+        if (String(u._id) === String(userId)) {
+          return { ...u, lastMessage: null, lastMessageTime: null };
+        }
+        return u;
+      });
+
+      set({ messages: [], chatCache: newCache, users: updatedUsers });
       saveCacheToStorage(newCache);
     } catch (error) {
       console.error('Error clearing chat:', error);

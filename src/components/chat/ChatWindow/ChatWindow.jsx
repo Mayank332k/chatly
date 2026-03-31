@@ -79,7 +79,6 @@ const ChatWindow = () => {
   const fileInputRef = useRef(null);
 
   const [selectedImageModal, setSelectedImageModal] = useState(null);
-  const [optimisticMessages, setOptimisticMessages] = useState([]);
   const [loadedImages, setLoadedImages] = useState({}); // 🛡️ Track which images have fully downloaded
 
   // 🤖 chatly AI Summary State
@@ -170,19 +169,11 @@ const ChatWindow = () => {
   useEffect(() => {
     if (selectedUser?._id) {
        getMessages(selectedUser._id);
-       setOptimisticMessages([]); // Reset on user change
        setLoadedImages({}); // Reset loaded states
        subscribeToMessages();
     }
     return () => unsubscribeFromMessages();
   }, [selectedUser?._id, getMessages, subscribeToMessages, unsubscribeFromMessages]);
-
-  useEffect(() => {
-    // Clear optimistic message once the real one arrives via socket/sync
-    if (messages.length > 0) {
-      setOptimisticMessages([]);
-    }
-  }, [messages]);
 
   useEffect(() => {
     // 🛡️ Trigger Read Receipt when messages update or user changes
@@ -231,7 +222,7 @@ const ChatWindow = () => {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, imagePreview, optimisticMessages, loadedImages, isTyping]);
+  }, [messages, imagePreview, loadedImages, isTyping]);
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -255,24 +246,6 @@ const ChatWindow = () => {
       setSending(true);
       
       const currentText = newMessage;
-      const currentPreview = imagePreview;
-
-      // 🎢 Optimistic UI: Show image in chat instantly
-      // Automatically mark our own optimistic preview as loaded so it doesn't spin
-      const tempId = 'optimistic-' + Date.now();
-      if (imageFile) {
-        setLoadedImages(prev => ({ ...prev, [tempId]: true }));
-        setOptimisticMessages([{
-          _id: tempId,
-          text: currentText,
-          image: currentPreview,
-          senderId: authUser._id,
-          receiverId: selectedUser._id,
-          createdAt: new Date().toISOString(),
-          isOptimistic: true,
-          status: 'sending'
-        }]);
-      }
 
       let payload;
       if (imageFile) {
@@ -692,7 +665,7 @@ const ChatWindow = () => {
                 <p className={styles.noHistoryDesc}>Tap the explore icon below to find friends.</p>
              </motion.div>
           ) : (
-            [...messages, ...optimisticMessages].map((msg, index) => {
+            messages.map((msg, index) => {
                const myId = String(authUser?._id || authUser?.id || '');
                const senderId = String(msg.senderId);
                
@@ -709,16 +682,51 @@ const ChatWindow = () => {
                  >
                     <div className={styles.bubbleWrapper}>
                       {isSentByMe && (
-                        <button 
-                          className={styles.msgOptionsBtn} 
-                          onClick={() => {
-                            if (msg.status !== 'sending' && !msg.isDeletedForEveryone) {
-                              setMessageToDelete({ ...msg, isSentByMe });
-                            }
-                          }}
-                        >
-                          <MoreHorizontal size={18} />
-                        </button>
+                        <div className={styles.msgOptionsContainer}>
+                          <button 
+                            className={styles.msgOptionsBtn} 
+                            onClick={() => {
+                              if (msg.status !== 'sending' && !msg.isDeletedForEveryone) {
+                                setMessageToDelete({ ...msg, isSentByMe });
+                              }
+                            }}
+                          >
+                            <MoreHorizontal size={18} />
+                          </button>
+                          
+                          {/* 🖥️ Desktop Options Dropdown (Sent messages - Grow Left) */}
+                          <AnimatePresence>
+                            {messageToDelete && messageToDelete._id === msg._id && window.innerWidth >= 768 && (
+                              <>
+                                <div 
+                                  style={{ position: 'fixed', inset: 0, zIndex: 999 }} 
+                                  onClick={(e) => { e.stopPropagation(); setMessageToDelete(null); }} 
+                                />
+                                <motion.div 
+                                  initial={{ opacity: 0, scale: 0.95, y: -5 }}
+                                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                                  exit={{ opacity: 0, scale: 0.95, y: -5 }}
+                                  className={`${styles.messageDropdownDesktop} ${styles.dropdownRight}`}
+                                >
+                                  {msg.text && (
+                                    <button className={styles.desktopMenuAction} onClick={() => { handleCopyMessage(msg.text); setMessageToDelete(null); }}>
+                                      {isCopied ? <Check size={16} color="#00d26a" /> : <Copy size={16} />}
+                                      <span>{isCopied ? 'Copied' : 'Copy Text'}</span>
+                                    </button>
+                                  )}
+                                  <button className={`${styles.desktopMenuAction} ${styles.danger}`} onClick={() => { deleteForMe(msg._id); setMessageToDelete(null); }}>
+                                    <Trash2 size={16} />
+                                    <span>Delete for Me</span>
+                                  </button>
+                                  <button className={`${styles.desktopMenuAction} ${styles.danger}`} onClick={() => { deleteForEveryone(msg._id); setMessageToDelete(null); }}>
+                                    <Trash2 size={16} />
+                                    <span>Delete for Everyone</span>
+                                  </button>
+                                </motion.div>
+                              </>
+                            )}
+                          </AnimatePresence>
+                        </div>
                       )}
                       
                       <div 
@@ -790,49 +798,47 @@ const ChatWindow = () => {
                     </div>
 
                     {!isSentByMe && (
-                      <button 
-                        className={styles.msgOptionsBtn} 
-                        onClick={() => {
-                          if (msg.status !== 'sending' && !msg.isDeletedForEveryone) {
-                            setMessageToDelete({ ...msg, isSentByMe });
-                          }
-                        }}
-                      >
-                        <MoreHorizontal size={18} />
-                      </button>
-                    )}
-
-                    {/* 🖥️ Desktop Options Dropdown */}
-                    {messageToDelete && messageToDelete._id === msg._id && window.innerWidth >= 768 && (
-                      <>
-                        <div 
-                          style={{ position: 'fixed', inset: 0, zIndex: 999 }} 
-                          onClick={(e) => { e.stopPropagation(); setMessageToDelete(null); }} 
-                        />
-                        <motion.div 
-                          initial={{ opacity: 0, scale: 0.95, y: -5 }}
-                          animate={{ opacity: 1, scale: 1, y: 0 }}
-                          exit={{ opacity: 0, scale: 0.95, y: -5 }}
-                          className={`${styles.messageDropdownDesktop} ${isSentByMe ? styles.dropdownRight : styles.dropdownLeft}`}
+                      <div className={styles.msgOptionsContainer}>
+                        <button 
+                          className={styles.msgOptionsBtn} 
+                          onClick={() => {
+                            if (msg.status !== 'sending' && !msg.isDeletedForEveryone) {
+                              setMessageToDelete({ ...msg, isSentByMe });
+                            }
+                          }}
                         >
-                          {msg.text && (
-                            <button className={styles.desktopMenuAction} onClick={() => { handleCopyMessage(msg.text); setMessageToDelete(null); }}>
-                              {isCopied ? <Check size={16} color="#00d26a" /> : <Copy size={16} />}
-                              <span>{isCopied ? 'Copied' : 'Copy Text'}</span>
-                            </button>
+                          <MoreHorizontal size={18} />
+                        </button>
+                        
+                        {/* 🖥️ Desktop Options Dropdown (Received messages - Grow Right) */}
+                        <AnimatePresence>
+                          {messageToDelete && messageToDelete._id === msg._id && window.innerWidth >= 768 && (
+                            <>
+                              <div 
+                                style={{ position: 'fixed', inset: 0, zIndex: 999 }} 
+                                onClick={(e) => { e.stopPropagation(); setMessageToDelete(null); }} 
+                              />
+                              <motion.div 
+                                initial={{ opacity: 0, scale: 0.95, y: -5 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.95, y: -5 }}
+                                className={`${styles.messageDropdownDesktop} ${styles.dropdownLeft}`}
+                              >
+                                {msg.text && (
+                                  <button className={styles.desktopMenuAction} onClick={() => { handleCopyMessage(msg.text); setMessageToDelete(null); }}>
+                                    {isCopied ? <Check size={16} color="#00d26a" /> : <Copy size={16} />}
+                                    <span>{isCopied ? 'Copied' : 'Copy Text'}</span>
+                                  </button>
+                                )}
+                                <button className={`${styles.desktopMenuAction} ${styles.danger}`} onClick={() => { deleteForMe(msg._id); setMessageToDelete(null); }}>
+                                  <Trash2 size={16} />
+                                  <span>Delete for Me</span>
+                                </button>
+                              </motion.div>
+                            </>
                           )}
-                          <button className={`${styles.desktopMenuAction} ${styles.danger}`} onClick={() => { deleteForMe(msg._id); setMessageToDelete(null); }}>
-                            <Trash2 size={16} />
-                            <span>Delete for Me</span>
-                          </button>
-                          {isSentByMe && (
-                            <button className={`${styles.desktopMenuAction} ${styles.danger}`} onClick={() => { deleteForEveryone(msg._id); setMessageToDelete(null); }}>
-                              <Trash2 size={16} />
-                              <span>Delete for Everyone</span>
-                            </button>
-                          )}
-                        </motion.div>
-                      </>
+                        </AnimatePresence>
+                      </div>
                     )}
                     </div>
 

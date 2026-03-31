@@ -4,32 +4,19 @@ import { X, Search, User, Compass, ArrowLeft } from 'lucide-react';
 import messageService from '../../../services/messageService';
 import styles from './SearchModal.module.css';
 
+import useChatStore from '../../../store/useChatStore';
+
 const SearchModal = ({ isOpen, onClose, onSelectUser }) => {
-  const [users, setUsers] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(false);
+  const allUsers = useChatStore(state => state.users);
+  const loading = useChatStore(state => state.isUsersLoading);
 
-  useEffect(() => {
-    if (isOpen) {
-      const fetchUsers = async () => {
-        try {
-          setLoading(true);
-          const data = await messageService.getUsers();
-          setUsers(data);
-        } catch (err) {
-          console.error('Explore API Error:', err);
-        } finally {
-          setLoading(false);
-        }
-      };
-      fetchUsers();
-    }
-  }, [isOpen]);
-
-  const filteredUsers = users.filter(user => 
-    user.username.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    user.fullName.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredUsers = allUsers.filter(user => {
+    const matchesSearch = user.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          user.username.toLowerCase().includes(searchQuery.toLowerCase());
+    const hasHistory = user.lastMessage || user.lastMessageTime;
+    return matchesSearch && !hasHistory;
+  });
 
   return (
     <AnimatePresence>
