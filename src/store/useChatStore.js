@@ -176,52 +176,75 @@ const useChatStore = create((set, get) => ({
       if (isAiAssistant) {
         // 🤖 Call the AI talk endpoint instead
         const aiPayload = (messageData instanceof FormData) ? { text: messageData.get('text') } : messageData;
-        set({ isAiThinking: true }); // Show "thinking" status
+        console.log('🤖 [sendMessage] AI flow started. tempId:', tempId);
+        set({ isAiThinking: true });
+        
         try {
+          console.log('🤖 [sendMessage] Calling chatbotService.talk()...');
           response = await chatbotService.talk(aiPayload);
-        } finally {
-          set({ isAiThinking: false });
+          console.log('🤖 [sendMessage] HTTP response received:', response?._id, '| text length:', response?.text?.length);
+        } catch (aiError) {
+          console.error('❌ [sendMessage] AI talk failed:', aiError);
+          set((state) => {
+            const cleaned = state.messages.filter(m => m._id !== tempId);
+            const cleanedCache = { ...state.chatCache, [selectedUser._id]: cleaned };
+            return { messages: cleaned, chatCache: cleanedCache, isAiThinking: false };
+          });
+          saveCacheToStorage(get().chatCache);
+          throw aiError;
         }
 
+        // ⚡ CRITICAL: By the time we get here, the socket stream (chatyAiChunk +
+        // chatyAiStreamEnd) may have ALREADY finalized the AI message into state.messages.
+        // We must NOT blindly overwrite state — use a functional update to merge safely.
+        set((state) => {
+          const userStillViewing = state.selectedUser?._id === selectedUser._id;
+          const freshMessages = userStillViewing ? state.messages : state.chatCache[selectedUser._id] || [];
+          
+          console.log('🤖 [sendMessage] Merging. userStillViewing:', userStillViewing, '| freshMessages count:', freshMessages.length);
+          
+          // 1. Confirm the user's optimistic message as "sent"
+          const confirmed = freshMessages.map(m => 
+            m._id === tempId ? { ...m, status: 'sent' } : m
+          );
 
-        const currentMessages = get().messages;
-        
-        // Step 1: Confirm user's optimistic message as "sent" (keep temp ID for socket dedup)
-        // If socket already replaced temp with real msg, this is a harmless no-op.
-        const userMsgConfirmed = currentMessages.map(m => 
-          m._id === tempId ? { ...m, status: 'sent' } : m
-        );
+          // 2. Check if the AI response already exists (delivered by socket stream)
+          const aiId = response?._id;
+          const aiText = response?.text;
+          const aiSender = String(response?.senderId || '');
+          
+          const alreadyExists = confirmed.some(m =>
+            (aiId && m._id === aiId) ||
+            (aiText && String(m.senderId) === aiSender && m.text === aiText) ||
+            (aiText && m.tempId === 'ai-streaming-active')
+          );
 
-        // Step 2: Append AI reply ONLY if socket hasn't already delivered it
-        // Check by _id first, then fallback to text+sender match to catch all cases
-        const aiReplyId = response?._id;
-        const aiReplyText = response?.text;
-        const aiSenderId = String(response?.senderId || '');
-        
-        const aiAlreadyInList = userMsgConfirmed.some(m => 
-          m._id === aiReplyId || 
-          (aiReplyText && String(m.senderId) === aiSenderId && m.text === aiReplyText)
-        );
-        
-        const updatedMessages = aiAlreadyInList 
-          ? userMsgConfirmed 
-          : [...userMsgConfirmed, { ...response, status: 'sent' }];
+          console.log('🤖 [sendMessage] aiAlreadyExists:', alreadyExists, '| aiId:', aiId, '| aiText:', aiText?.slice(0, 30));
 
-        const { [tempId]: _, ...remainingProgress } = get().uploadProgress;
-        const updatedCache = { ...get().chatCache, [selectedUser._id]: updatedMessages };
+          const finalMessages = (alreadyExists || !aiText)
+            ? confirmed 
+            : [...confirmed, { ...response, status: 'sent' }];
 
-        set({
-          messages: updatedMessages,
-          chatCache: updatedCache,
-          uploadProgress: remainingProgress,
-          users: get().users.map(u => 
-            String(u._id) === String(selectedUser._id) 
-            ? { ...u, lastMessage: response.text, lastMessageTime: response.createdAt } 
-            : u
-          ).sort((a, b) => new Date(b.lastMessageTime || 0) - new Date(a.lastMessageTime || 0))
+          console.log('🤖 [sendMessage] Final messages count:', finalMessages.length, '| appended:', !alreadyExists && !!aiText);
+
+          const { [tempId]: _, ...remainingProgress } = state.uploadProgress;
+          const updatedCache = { ...state.chatCache, [selectedUser._id]: finalMessages };
+
+          return {
+            ...(userStillViewing ? { messages: finalMessages } : {}),
+            chatCache: updatedCache,
+            uploadProgress: remainingProgress,
+            isAiThinking: false,
+            users: state.users.map(u => 
+              String(u._id) === String(selectedUser._id) 
+              ? { ...u, lastMessage: response?.text || u.lastMessage, lastMessageTime: response?.createdAt || u.lastMessageTime } 
+              : u
+            ).sort((a, b) => new Date(b.lastMessageTime || 0) - new Date(a.lastMessageTime || 0))
+          };
         });
 
-        saveCacheToStorage(updatedCache);
+        saveCacheToStorage(get().chatCache);
+        console.log('🤖 [sendMessage] AI flow complete. isAiThinking:', get().isAiThinking, '| messages:', get().messages.length);
         return response;
       }
 

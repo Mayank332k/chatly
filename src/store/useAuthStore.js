@@ -164,7 +164,7 @@ const useAuthStore = create((set, get) => ({
       const { selectedUser } = chatStoreRef.getState();
 
       chatStoreRef.setState((state) => {
-        const { messages, chatCache } = state;
+        const { messages, chatCache, users } = state;
         
         let updatedMessages = messages;
         if (selectedUser && String(selectedUser._id) === targetChatId) {
@@ -328,16 +328,19 @@ const useAuthStore = create((set, get) => ({
 
     // 🤖 ChatyAi Streaming Listeners
     newSocket.on('chatyAiStreamStart', ({ senderId }) => {
+      console.log('🤖🔵 [Socket] chatyAiStreamStart from:', senderId);
       if (!chatStoreRef) return;
       chatStoreRef.setState({ isAiThinking: true });
     });
 
     newSocket.on('chatyAiChunk', ({ content, senderId }) => {
+      console.log('🤖📦 [Socket] chatyAiChunk:', content?.slice(0, 20), '...');
       if (!chatStoreRef) return;
       chatStoreRef.getState().handleAiChunk('ai-streaming-active', content, senderId, get().authUser?._id);
     });
 
     newSocket.on('chatyAiStreamEnd', (finalMessage) => {
+      console.log('🤖✅ [Socket] chatyAiStreamEnd. msgId:', finalMessage?._id, '| text:', finalMessage?.text?.slice(0, 30));
       if (!chatStoreRef) return;
       chatStoreRef.setState({ isAiThinking: false });
       
@@ -346,9 +349,26 @@ const useAuthStore = create((set, get) => ({
         const tempId = 'ai-streaming-active';
         const targetChatId = String(finalMessage.senderId);
 
-        const updatedMessages = messages.map(m => (m.tempId === tempId || m._id === tempId) ? finalMessage : m);
+        // Replace the streaming placeholder with the final message
+        const hasStreaming = messages.some(m => m.tempId === tempId || m._id === tempId);
+        console.log('🤖✅ [Socket] StreamEnd merge. hasStreaming:', hasStreaming, '| msg count:', messages.length);
+        
+        let updatedMessages;
+        if (hasStreaming) {
+          updatedMessages = messages.map(m => (m.tempId === tempId || m._id === tempId) ? finalMessage : m);
+        } else {
+          // Streaming placeholder was never added (no chunks arrived) — append directly
+          updatedMessages = [...messages, finalMessage];
+        }
+        
         const currentCache = chatCache[targetChatId] || [];
-        const updatedCacheArr = currentCache.map(m => (m.tempId === tempId || m._id === tempId) ? finalMessage : m);
+        const hasCacheStreaming = currentCache.some(m => m.tempId === tempId || m._id === tempId);
+        let updatedCacheArr;
+        if (hasCacheStreaming) {
+          updatedCacheArr = currentCache.map(m => (m.tempId === tempId || m._id === tempId) ? finalMessage : m);
+        } else {
+          updatedCacheArr = [...currentCache, finalMessage];
+        }
 
         return { 
           messages: updatedMessages,
