@@ -41,9 +41,7 @@ const useAuthStore = create((set, get) => ({
   signup: async (formData) => {
     try {
       const res = await authService.signup(formData);
-      set({ authUser: res });
-      localStorage.setItem('chat-user', JSON.stringify(res)); // 🪄 Sync Store and Storage
-      get().connectSocket();
+      // Removed auto-login logic to force login after signup
       return res;
     } catch (error) {
       console.error('Signup error:', error);
@@ -82,7 +80,8 @@ const useAuthStore = create((set, get) => ({
     const { authUser, socket } = get();
     if (!authUser) return;
     
-    const userId = authUser._id || authUser.id;
+    const extractedUser = authUser.user || authUser;
+    const userId = extractedUser._id || extractedUser.id;
     if (!userId) {
       console.error('❌ Cannot connect socket: No user ID found in authUser:', authUser);
       return;
@@ -149,9 +148,10 @@ const useAuthStore = create((set, get) => ({
       console.log('📨 New message received via socket:', newMessage._id);
       if (!chatStoreRef) return;
       
-      const authUser = get().authUser;
-      const myId = String(authUser?._id || authUser?.id || '');
+      const extractedAuthUser = get().authUser?.user || get().authUser;
+      const myId = String(extractedAuthUser?._id || extractedAuthUser?.id || '');
       const sId = String(newMessage.senderId);
+
       const rId = String(newMessage.receiverId);
 
       // 🛡️ SKIP messages I sent myself — those are handled by the HTTP response
@@ -248,9 +248,10 @@ const useAuthStore = create((set, get) => ({
       console.log('👁️ Messages read event received:', { senderId, receiverId });
       if (!chatStoreRef) return;
       
-      const authUser = get().authUser;
-      const myId = String(authUser?._id || authUser?.id || '');
+      const extractedAuthUser = get().authUser?.user || get().authUser;
+      const myId = String(extractedAuthUser?._id || extractedAuthUser?.id || '');
       const sId = String(senderId);
+
       const rId = String(receiverId);
 
       // If User B read User A's messages: sId=A, rId=B

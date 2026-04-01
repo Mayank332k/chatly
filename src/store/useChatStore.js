@@ -152,11 +152,13 @@ const useChatStore = create((set, get) => ({
     if (!selectedUser) return;
 
     const authUser = useAuthStore.getState().authUser;
+    const extractedAuthUser = authUser?.user || authUser;
     const tempId = `temp-${Date.now()}`;
 
     const optimisticMessage = {
       _id: tempId,
-      senderId: authUser?._id || authUser?.id || 'me',
+      senderId: extractedAuthUser?._id || extractedAuthUser?.id || 'me',
+
       receiverId: selectedUser._id,
       text: (messageData instanceof FormData) ? messageData.get('text') : messageData.text,
       image: (messageData instanceof FormData && messageData.get('image')) ? URL.createObjectURL(messageData.get('image')) : null,
@@ -208,24 +210,20 @@ const useChatStore = create((set, get) => ({
             m._id === tempId ? { ...m, status: 'sent' } : m
           );
 
-          // 2. Check if the AI response already exists (delivered by socket stream)
+          // 2. Check if the AI response already exists (delivered by socket stream/chunks)
           const aiId = response?._id;
           const aiText = response?.text;
-          const aiSender = String(response?.senderId || '');
           
+          // Deduplicate ONLY by exact MongoDB _id or the active streaming placeholder
           const alreadyExists = confirmed.some(m =>
             (aiId && m._id === aiId) ||
-            (aiText && String(m.senderId) === aiSender && m.text === aiText) ||
-            (aiText && m.tempId === 'ai-streaming-active')
+            (aiText && (m.tempId === 'ai-streaming-active' || m._id === 'ai-streaming-active'))
           );
 
-          console.log('🤖 [sendMessage] aiAlreadyExists:', alreadyExists, '| aiId:', aiId, '| aiText:', aiText?.slice(0, 30));
-
+          // 🛡️ CRITICAL: If AI response is already in list (via socket), DON'T append again.
           const finalMessages = (alreadyExists || !aiText)
             ? confirmed 
             : [...confirmed, { ...response, status: 'sent' }];
-
-          console.log('🤖 [sendMessage] Final messages count:', finalMessages.length, '| appended:', !alreadyExists && !!aiText);
 
           const { [tempId]: _, ...remainingProgress } = state.uploadProgress;
           const updatedCache = { ...state.chatCache, [selectedUser._id]: finalMessages };
@@ -253,36 +251,36 @@ const useChatStore = create((set, get) => ({
         get().setUploadProgress(tempId, percent);
       });
       
-      // 🛡️ Robust Deduplication: Check if Message already arrived via Socket
-      const currentMessages = get().messages;
-      const alreadyInList = currentMessages.some(m => m._id === response?._id);
+      set((state) => {
+        const currentMessages = state.messages;
+        const alreadyInList = currentMessages.some(m => m._id === response?._id);
 
-      let updatedMessages;
-      if (alreadyInList) {
-        // Just update status of existing message
-        updatedMessages = currentMessages.map(m => m._id === response?._id ? { ...m, status: 'sent' } : m);
-        // And remove the temp one if it's still hanging around
-        updatedMessages = updatedMessages.filter(m => m._id !== tempId);
-      } else {
-        // Standard replacement of optimistic placeholder
-        updatedMessages = currentMessages.map(m => m._id === tempId ? { ...response, status: 'sent' } : m);
-      }
+        let updatedMessages;
+        if (alreadyInList) {
+          // Just update status of existing message and remove temp
+          updatedMessages = currentMessages.map(m => m._id === response?._id ? { ...m, status: 'sent' } : m);
+          updatedMessages = updatedMessages.filter(m => m._id !== tempId);
+        } else {
+          // Standard replacement of optimistic placeholder
+          updatedMessages = currentMessages.map(m => m._id === tempId ? { ...response, status: 'sent' } : m);
+        }
 
-      const { [tempId]: _, ...remainingProgress } = get().uploadProgress;
-      const updatedCache = { ...get().chatCache, [selectedUser._id]: updatedMessages };
+        const { [tempId]: _, ...remainingProgress } = state.uploadProgress;
+        const updatedCache = { ...state.chatCache, [selectedUser._id]: updatedMessages };
 
-      set({
-        messages: updatedMessages,
-        chatCache: updatedCache,
-        uploadProgress: remainingProgress,
-        users: get().users.map(u => 
-          String(u._id) === String(selectedUser._id) 
-          ? { ...u, lastMessage: response.text, lastMessageTime: response.createdAt } 
-          : u
-        ).sort((a, b) => new Date(b.lastMessageTime || 0) - new Date(a.lastMessageTime || 0))
+        return {
+          ...(state.selectedUser?._id === selectedUser._id ? { messages: updatedMessages } : {}),
+          chatCache: updatedCache,
+          uploadProgress: remainingProgress,
+          users: state.users.map(u => 
+            String(u._id) === String(selectedUser._id) 
+            ? { ...u, lastMessage: response.text, lastMessageTime: response.createdAt } 
+            : u
+          ).sort((a, b) => new Date(b.lastMessageTime || 0) - new Date(a.lastMessageTime || 0))
+        };
       });
 
-      saveCacheToStorage(updatedCache);
+      saveCacheToStorage(get().chatCache);
       return response;
     } catch (error) {
       console.error('Send error (offline/slow):', error);
@@ -430,7 +428,10 @@ const useChatStore = create((set, get) => ({
 
   handleAiChunk: (tempId, chunk, senderId, receiverId) => {
     const { messages, chatCache } = get();
-    const myId = String(useAuthStore.getState().authUser?._id || useAuthStore.getState().authUser?.id || '');
+    const stateAuthUser = useAuthStore.getState().authUser;
+    const extractedAuthUser = stateAuthUser?.user || stateAuthUser;
+    const myId = String(extractedAuthUser?._id || extractedAuthUser?.id || '');
+
     
     // Determine which chat ID to update (the partner's ID)
     const targetChatId = String(senderId) === myId ? String(receiverId) : String(senderId);

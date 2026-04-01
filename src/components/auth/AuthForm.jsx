@@ -46,17 +46,26 @@ const AuthForm = () => {
     try {
       if (isLogin) {
         await login(username, password);
+        navigate('/chat');
       } else {
         const formData = new FormData();
         formData.append('fullName', fullName);
         formData.append('username', username);
         formData.append('password', password);
         if (profilePic) formData.append('profilePic', profilePic);
+        
         await signup(formData);
+        
+        // Success: Switch to Login View and show success alert
+        setIsLogin(true);
+        setPassword(''); // 🛡️ Clear security fields
+        setFullName('');
+        setPreviewUrl(null);
+        setProfilePic(null);
       }
-      navigate('/chat');
     } catch (err) {
-      setError(err.response?.data?.message || 'Authentication Failed');
+      console.error('Auth Error:', err);
+      setError(err || 'Authentication Failed');
     } finally {
       setLoading(false);
     }
