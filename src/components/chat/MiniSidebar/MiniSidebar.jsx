@@ -60,6 +60,27 @@ const MiniSidebar = ({ onExploreClick, className }) => {
   return (
     <aside className={`${styles.miniSidebar} ${className}`}>
       <div 
+        className={styles.logoContainer} 
+        style={{ 
+          marginBottom: '20px', 
+          cursor: 'pointer',
+          padding: '10px'
+        }}
+        onClick={() => navigate('/chat')}
+      >
+        <img 
+          src="/app_icon.png" 
+          alt="Chatly" 
+          style={{ 
+            width: '32px', 
+            height: '32px', 
+            borderRadius: '8px',
+            boxShadow: '0 4px 10px rgba(0,0,0,0.3)'
+          }} 
+        />
+      </div>
+
+      <div 
         className={`${styles.navIcon} ${!isAiSelected ? styles.active : ''}`} 
         data-tooltip="Chats"
         onClick={() => { setSelectedUser(null); navigate('/chat'); }}

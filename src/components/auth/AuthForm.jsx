@@ -81,7 +81,18 @@ const AuthForm = () => {
           exit={{ opacity: 0, y: -15 }}
           style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '32px' }}
         >
-          <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+          <div style={{ textAlign: 'center', marginBottom: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <img 
+              src="/app_icon.png" 
+              alt="SecureChat Logo" 
+              style={{ 
+                width: '64px', 
+                height: '64px', 
+                marginBottom: '20px', 
+                borderRadius: '16px',
+                boxShadow: '0 10px 25px rgba(0,0,0,0.3)'
+              }} 
+            />
             <h2 className={styles.title}>
               {isLogin ? 'Welcome Back' : 'Create Account'}
             </h2>
